@@ -1,0 +1,7 @@
+hangu:
+  rpc:
+    port: 8089
+    peerNodeUrls: http://localhost:9991,http://localhost:9992
+    thread:
+      coreNum: 32
+      maxNum: 32
