@@ -17,10 +17,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.channel.handler.HeartBeatPingHandler;
 import org.hangu.center.channel.handler.RequestMessageHandler;
 import org.hangu.center.channel.handler.ResponseMessageCodec;
+import org.hangu.center.properties.HanguProperties;
 import org.hangu.common.channel.handler.ByteFrameDecoder;
 import org.hangu.common.channel.handler.HeartBeatEncoder;
 import org.hangu.common.constant.HanguCons;
-import org.hangu.common.properties.HanguProperties;
 
 /**
  * @author wuzhenhong
