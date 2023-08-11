@@ -1,4 +1,4 @@
-package org.hangu.disconver.channel.handler;
+package org.hangu.discover.channel.handler;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.common.entity.PingPong;
 import org.hangu.common.util.CommonUtils;
-import org.hangu.disconver.client.NettyClient;
+import org.hangu.discover.client.NettyClient;
 
 /**
  * 心跳处理器

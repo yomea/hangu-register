@@ -1,8 +1,10 @@
-package org.hangu.center.configuration;
+package org.hangu.discover.configuration;
 
-import org.hangu.center.properties.HanguProperties;
+import org.hangu.common.properties.HanguProperties;
+import org.hangu.discover.client.DiscoverClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
@@ -10,8 +12,13 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(HanguProperties.class)
-public class HanguAutoConfiguration {
+public class HanguClientAutoConfiguration {
 
     @Autowired
     private HanguProperties hanguProperties;
+
+    @Bean
+    public DiscoverClient discoverClient() {
+        return new DiscoverClient(hanguProperties);
+    }
 }

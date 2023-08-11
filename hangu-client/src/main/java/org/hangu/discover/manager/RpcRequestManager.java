@@ -1,4 +1,4 @@
-package org.hangu.disconver.manager;
+package org.hangu.discover.manager;
 
 import io.netty.util.concurrent.DefaultPromise;
 import java.util.Map;

@@ -1,4 +1,4 @@
-package org.hangu.center.properties;
+package org.hangu.common.properties;
 
 import lombok.Data;
 

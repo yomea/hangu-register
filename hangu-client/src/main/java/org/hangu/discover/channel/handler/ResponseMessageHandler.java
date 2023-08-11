@@ -1,4 +1,4 @@
-package org.hangu.disconver.channel.handler;
+package org.hangu.discover.channel.handler;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -8,7 +8,7 @@ import java.util.concurrent.Executor;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.common.entity.Response;
 import org.hangu.common.entity.RpcResult;
-import org.hangu.disconver.manager.RpcRequestManager;
+import org.hangu.discover.manager.RpcRequestManager;
 
 /**
  * 处理提供者的返回响应

@@ -1,4 +1,4 @@
-package org.hangu.disconver.channel.handler;
+package org.hangu.discover.channel.handler;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;

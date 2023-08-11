@@ -29,6 +29,8 @@ public class ServiceRegisterManager implements InitializingBean {
      */
     private final Map<HostInfo, InstanceInfo> instanceMapExpire = new ConcurrentHashMap<>(DEFAULT_SIZE);
 
+
+
     @Override
     public void afterPropertiesSet() throws Exception {
         // TODO: 2023/8/11 向其他节点同步注册信息

@@ -1,4 +1,4 @@
-package org.hangu.disconver.client;
+package org.hangu.discover.client;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -18,9 +18,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.hangu.common.channel.handler.ByteFrameDecoder;
 import org.hangu.common.channel.handler.HeartBeatEncoder;
 import org.hangu.common.constant.HanguCons;
-import org.hangu.disconver.channel.handler.HeartBeatPongHandler;
-import org.hangu.disconver.channel.handler.RequestMessageCodec;
-import org.hangu.disconver.channel.handler.ResponseMessageHandler;
+import org.hangu.discover.channel.handler.HeartBeatPongHandler;
+import org.hangu.discover.channel.handler.RequestMessageCodec;
+import org.hangu.discover.channel.handler.ResponseMessageHandler;
 
 /**
  * @author wuzhenhong
@@ -66,7 +66,7 @@ public class NettyClient {
         }
     }
 
-    private void close() {
+    public void close() {
         if (nioEventLoopGroup != null) {
             nioEventLoopGroup.shutdownGracefully();
         }
