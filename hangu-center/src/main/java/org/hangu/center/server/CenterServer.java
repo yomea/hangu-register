@@ -2,10 +2,10 @@ package org.hangu.center.server;
 
 import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import org.hangu.common.properties.HanguProperties;
+import org.hangu.center.properties.CenterProperties;
 import org.hangu.common.properties.ThreadProperties;
 import org.hangu.common.constant.HanguCons;
 import org.springframework.beans.factory.DisposableBean;
@@ -18,12 +18,12 @@ import org.springframework.beans.factory.InitializingBean;
 public class CenterServer implements InitializingBean, DisposableBean {
 
     private NettyServer nettyServer;
-    private HanguProperties hanguProperties;
+    private CenterProperties centerProperties;
 
-    private Executor executor;
+    private ExecutorService executor;
 
-    public CenterServer(HanguProperties hanguProperties) {
-        this.hanguProperties = hanguProperties;
+    public CenterServer(CenterProperties centerProperties) {
+        this.centerProperties = centerProperties;
     }
 
     @Override
@@ -34,19 +34,20 @@ public class CenterServer implements InitializingBean, DisposableBean {
     @Override
     public void destroy() throws Exception {
         nettyServer.close();
+        executor.shutdown();
     }
 
     private void initServer() {
         int coreNum = HanguCons.CPUS << 3;
         int maxNum = coreNum;
-        ThreadProperties thread = hanguProperties.getThread();
+        ThreadProperties thread = centerProperties.getThread();
         if (Objects.nonNull(thread)) {
             coreNum = thread.getCoreNum() > 0 ? thread.getCoreNum() : coreNum;
             maxNum = thread.getMaxNum() > 0 ? thread.getMaxNum() : maxNum;
         }
         this.executor = new ThreadPoolExecutor(coreNum, maxNum, 10, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1000));
         this.nettyServer = new NettyServer();
-        nettyServer.start(this.hanguProperties, executor);
+        nettyServer.start(this.centerProperties, executor);
     }
 
 }

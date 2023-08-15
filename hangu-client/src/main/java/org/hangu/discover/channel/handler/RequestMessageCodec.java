@@ -10,7 +10,6 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.common.constant.HanguCons;
 import org.hangu.common.entity.PingPong;
-import org.hangu.common.entity.RegistryInfo;
 import org.hangu.common.entity.Request;
 import org.hangu.common.entity.Response;
 import org.hangu.common.entity.RpcResult;
@@ -33,16 +32,20 @@ public class RequestMessageCodec extends MessageToMessageCodec<ByteBuf, Request>
         // 魔数 2bytes
         byteBuf.writeShort(HanguCons.MAGIC);
         // 请求类型，序列化方式 1bytes
-        byte finalMsgType = MsgTypeMarkEnum.REQUEST_FLAG.getMark();
+        byte finalMsgType = (byte) (MsgTypeMarkEnum.REQUEST_FLAG.getMark() | request.getCommandType());
+        if(request.isOneWay()) {
+            finalMsgType |= MsgTypeMarkEnum.ONE_WAY_FLAG.getMark();
+        }
         // 消息类型 1byte
         byteBuf.writeByte(finalMsgType);
         // 写入请求id
         byteBuf.writeLong(request.getId());
         // 写入内容
-        RegistryInfo registryInfo = request.getRegistryInfo();
+        Object requestBody = request.getBody();
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             SerialOutput serialOutput = Hessian2SerialOutputFactory.createSerialization(outputStream);
-            serialOutput.writeObject(registryInfo);
+            serialOutput.writeString(DescClassUtils.getDesc(requestBody.getClass()));
+            serialOutput.writeObject(requestBody);
             serialOutput.flush();
             byte[] contentBuff = outputStream.toByteArray();
             //内容对象长度 int 4bytes
@@ -78,7 +81,8 @@ public class RequestMessageCodec extends MessageToMessageCodec<ByteBuf, Request>
                 list.add(pingPong);
                 // 响应
             } else if (requstFlag == 0) {
-                Response response = this.dealResponse(id, byteBuf);
+                byte commandType = (byte) (HanguCons.COMMAND_MARK & msgType);
+                Response response = this.dealResponse(id, byteBuf, commandType);
                 list.add(response);
             }
         } catch (RpcInvokerException e) {
@@ -99,7 +103,7 @@ public class RequestMessageCodec extends MessageToMessageCodec<ByteBuf, Request>
         }
     }
 
-    private Response dealResponse(Long id, ByteBuf byteBuf)
+    private Response dealResponse(Long id, ByteBuf byteBuf, byte commandType)
         throws IOException, ClassNotFoundException {
 
         int bodyLength = byteBuf.readInt();
@@ -119,6 +123,7 @@ public class RequestMessageCodec extends MessageToMessageCodec<ByteBuf, Request>
         result.setResult(value);
         Response response = new Response();
         response.setId(id);
+        response.setCommandType(commandType);
         response.setRpcResult(result);
 
         return response;

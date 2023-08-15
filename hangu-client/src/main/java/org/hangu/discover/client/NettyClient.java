@@ -11,16 +11,21 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 import java.net.SocketAddress;
-import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.common.channel.handler.ByteFrameDecoder;
 import org.hangu.common.channel.handler.HeartBeatEncoder;
 import org.hangu.common.constant.HanguCons;
+import org.hangu.common.enums.ErrorCodeEnum;
+import org.hangu.common.exception.RpcStarterException;
+import org.hangu.common.properties.TransportProperties;
 import org.hangu.discover.channel.handler.HeartBeatPongHandler;
 import org.hangu.discover.channel.handler.RequestMessageCodec;
 import org.hangu.discover.channel.handler.ResponseMessageHandler;
+import org.hangu.discover.manager.ConnectManager;
 
 /**
  * @author wuzhenhong
@@ -33,7 +38,16 @@ public class NettyClient {
 
     private NioEventLoopGroup nioEventLoopGroup;
 
-    public void start(Executor executor) {
+    private ConnectManager connectManager;
+
+    private TransportProperties transport;
+
+    public NettyClient(ConnectManager connectManager, TransportProperties transport) {
+        this.connectManager = connectManager;
+        this.transport = transport;
+    }
+
+    public void start() {
         try {
             bootstrap = new Bootstrap();
             nioEventLoopGroup = new NioEventLoopGroup(HanguCons.CPUS << 3);
@@ -55,9 +69,10 @@ public class NettyClient {
                             .addLast(new HeartBeatEncoder()) // 心跳编码器
                             .addLast("logging", loggingHandler)
                             // 每隔 2s 发送一次心跳，超过三次没有收到响应，也就是三倍的心跳时间，重连
-                            .addLast(new IdleStateHandler(2, 0, 0, TimeUnit.SECONDS))
-                            .addLast(new HeartBeatPongHandler(NettyClient.this)) // 心跳编码器
-                            .addLast(new ResponseMessageHandler(executor));
+                            .addLast(new IdleStateHandler(transport.getHeartbeatTimeRate(), 0, 0, TimeUnit.SECONDS))
+                            .addLast(new HeartBeatPongHandler(NettyClient.this,
+                                transport.getHeartbeatTimeOutCount())) // 心跳编码器
+                            .addLast(new ResponseMessageHandler());
                     }
                 });
         } catch (Exception e) {
@@ -79,17 +94,26 @@ public class NettyClient {
      * @param port
      * @return
      */
-    public Channel syncConnect(String hostIp, int port) throws InterruptedException {
-        Channel channel = this.bootstrap.connect(hostIp, port).addListener(future -> {
+    public ChannelFuture syncConnect(String hostIp, int port) throws InterruptedException {
+        ChannelFuture channelFuture = this.bootstrap.connect(hostIp, port).addListener(future -> {
             if (!future.isSuccess()) {
                 log.error("连接 {}:{} 失败！", hostIp, port);
             }
-        }).sync().channel();
+        }).sync();
 
-        return channel;
+        return channelFuture;
+    }
+
+    public void connect(String hostIp, int port, GenericFutureListener<? extends Future<? super Void>> listener)
+        throws InterruptedException {
+        this.bootstrap.connect(hostIp, port).addListener(listener).channel();
     }
 
     public ChannelFuture reconnect(SocketAddress remoteAddress) {
         return this.bootstrap.connect(remoteAddress);
+    }
+
+    public ConnectManager getConnectManager() {
+        return connectManager;
     }
 }

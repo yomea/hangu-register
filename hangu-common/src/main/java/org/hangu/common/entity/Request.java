@@ -8,7 +8,7 @@ import lombok.Data;
  * @date 2023/7/31 15:29
  */
 @Data
-public class Request implements Serializable {
+public class Request<T> implements Serializable {
 
     /**
      * 请求ID，8字节
@@ -16,7 +16,17 @@ public class Request implements Serializable {
     private Long id;
 
     /**
-     * 注册信息
+     * @see org.hangu.common.enums.MsgTypeMarkEnum
      */
-    private RegistryInfo registryInfo;
+    private boolean oneWay;
+
+    /**
+     * @see org.hangu.common.enums.CommandTypeMarkEnum
+     */
+    private byte commandType;
+
+    /**
+     * body
+     */
+    private T body;
 }

@@ -1,5 +1,6 @@
 package org.hangu.discover.channel.handler;
 
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.timeout.IdleState;
@@ -24,8 +25,11 @@ public class HeartBeatPongHandler extends SimpleChannelInboundHandler<PingPong> 
 
     private int retryBeat = 0;
 
-    public HeartBeatPongHandler(NettyClient nettyClient) {
+    private int allowRetryBeat;
+
+    public HeartBeatPongHandler(NettyClient nettyClient, int allowRetryBeat) {
         this.nettyClient = nettyClient;
+        this.allowRetryBeat = allowRetryBeat <= 1 ? 3 : allowRetryBeat;
     }
 
     @Override
@@ -47,7 +51,7 @@ public class HeartBeatPongHandler extends SimpleChannelInboundHandler<PingPong> 
                     // 发送心跳（从当前 context 往前）
                     ctx.writeAndFlush(pingPong).addListener(future -> {
                         // 发送失败，有可能是连读断了，也有可能只是网络抖动问题
-                        if (!future.isSuccess() && ++retryBeat > 3) {
+                        if (!future.isSuccess() && ++retryBeat > allowRetryBeat) {
                             // 重连
                             this.reconnect(ctx);
                         } else {
@@ -67,10 +71,15 @@ public class HeartBeatPongHandler extends SimpleChannelInboundHandler<PingPong> 
                 return;
             }
             ctx.channel().eventLoop().schedule(() -> {
+                // 清理时效的注册中心连接
+                nettyClient.getConnectManager().removeChannel(ctx.channel());
                 // 重连创建一个新的通道
                 nettyClient.reconnect(remoteAddress).addListener(f -> {
                     if (!f.isSuccess()) {
-                        log.error("重新连接{}失败！", remoteAddress.toString());
+                        log.error("重新连接{}失败！", remoteAddress.toString(), f.cause());
+                    } else {
+                        ChannelFuture channelFuture = (ChannelFuture) f;
+                        nettyClient.getConnectManager().cacheChannel(channelFuture.channel());
                     }
                 });
             }, 1, TimeUnit.SECONDS);

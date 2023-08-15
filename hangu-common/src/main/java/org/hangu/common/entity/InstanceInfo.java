@@ -11,20 +11,9 @@ import lombok.Data;
 public class InstanceInfo implements Serializable {
 
     /**
-     * 实例id
-     */
-    private Long id;
-
-    /**
      * 过期时间，该值随着心跳更新
      */
     private Long expireTime;
-
-    /**
-     * 注册或者更新时间
-     * 主要用于增量同步
-     */
-    private Long registerAndUpdateTime;
 
     /**
      * 该实例地址

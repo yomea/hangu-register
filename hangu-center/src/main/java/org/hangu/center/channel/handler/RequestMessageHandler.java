@@ -3,7 +3,10 @@ package org.hangu.center.channel.handler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import java.util.concurrent.Executor;
+import org.hangu.center.bussiness.handler.RequestHandler;
+import org.hangu.center.bussiness.handler.RequestHandlerFactory;
 import org.hangu.common.entity.Request;
+import org.hangu.common.entity.Response;
 
 /**
  * 处理请求消息
@@ -21,8 +24,15 @@ public class RequestMessageHandler extends SimpleChannelInboundHandler<Request> 
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Request request) throws Exception {
-
-        // TODO: 2023/8/11 注册，如果已存在，更新，并且同步到其他的节点
+        // 根据命令处理响应业务
+        byte commonType = request.getCommandType();
+        RequestHandler requestHandler = RequestHandlerFactory.getRequestHandlerByType(commonType);
+        this.executor.execute(() -> {
+            Response response = requestHandler.handler(request);
+            if(!request.isOneWay()) {
+                ctx.channel().writeAndFlush(response);
+            }
+        });
     }
 
     @Override

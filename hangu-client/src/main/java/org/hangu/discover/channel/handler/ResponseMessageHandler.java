@@ -19,12 +19,6 @@ import org.hangu.discover.manager.RpcRequestManager;
 @Slf4j
 public class ResponseMessageHandler extends SimpleChannelInboundHandler<Response> {
 
-    private Executor executor;
-
-    public ResponseMessageHandler(Executor executor) {
-        this.executor = executor;
-    }
-
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Response response) throws Exception {
 

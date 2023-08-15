@@ -1,15 +1,17 @@
-package org.hangu.common.properties;
+package org.hangu.center.properties;
 
 import lombok.Data;
+import org.hangu.common.properties.ThreadProperties;
+import org.hangu.common.properties.TransportProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * @author wuzhenhong
  * @date 2023/8/3 18:18
  */
-@ConfigurationProperties(prefix = "hangu.rpc")
+@ConfigurationProperties(prefix = "hangu.center")
 @Data
-public class HanguProperties {
+public class CenterProperties {
 
     /**
      * 注册中心暴露的端口号
@@ -19,7 +21,9 @@ public class HanguProperties {
     /**
      * 其他节点url
      */
-    private String peerNodeUrls;
+    private String peerNodeHosts;
+
+    private TransportProperties transport;
 
     /**
      * 处理请求线程配置

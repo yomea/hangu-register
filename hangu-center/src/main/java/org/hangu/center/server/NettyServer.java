@@ -17,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.channel.handler.HeartBeatPingHandler;
 import org.hangu.center.channel.handler.RequestMessageHandler;
 import org.hangu.center.channel.handler.ResponseMessageCodec;
-import org.hangu.common.properties.HanguProperties;
+import org.hangu.center.properties.CenterProperties;
 import org.hangu.common.channel.handler.ByteFrameDecoder;
 import org.hangu.common.channel.handler.HeartBeatEncoder;
 import org.hangu.common.constant.HanguCons;
@@ -37,7 +37,7 @@ public class NettyServer {
 
     private NioEventLoopGroup worker;
 
-    public void start(HanguProperties properties, Executor executor) {
+    public void start(CenterProperties properties, Executor executor) {
 
         boss = new NioEventLoopGroup();
         worker = new NioEventLoopGroup(HanguCons.DEF_IO_THREADS);
@@ -96,9 +96,5 @@ public class NettyServer {
         } catch (Throwable e) {
             log.warn(e.getMessage(), e);
         }
-    }
-
-    public boolean isActive() {
-        return channel.isActive();
     }
 }

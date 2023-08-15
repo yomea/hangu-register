@@ -41,6 +41,7 @@ public class ResponseMessageCodec extends MessageToMessageCodec<ByteBuf, Respons
         byteBuf.writeShort(HanguCons.MAGIC);
         // 请求类型，序列化方式 1bytes
         byte finalMsgType = (byte) (MsgTypeMarkEnum.REQUEST_FLAG.getMark() & 0);
+        finalMsgType |= response.getCommandType();
         // 消息类型 1byte
         byteBuf.writeByte(finalMsgType);
         // 写入请求id
@@ -81,7 +82,7 @@ public class ResponseMessageCodec extends MessageToMessageCodec<ByteBuf, Respons
         try {
             // 表示是来自客户端的请求
             if (requstFlag != 0) {
-                Request request = this.dealRequest(id, byteBuf);
+                Request request = this.dealRequest(id, byteBuf, msgType);
                 list.add(request);
                 // 心跳
             } else if ((MsgTypeMarkEnum.HEART_FLAG.getMark() & msgType) != 0) {
@@ -107,7 +108,7 @@ public class ResponseMessageCodec extends MessageToMessageCodec<ByteBuf, Respons
         }
     }
 
-    private Request dealRequest(Long id, ByteBuf byteBuf) throws IOException {
+    private Request dealRequest(Long id, ByteBuf byteBuf, byte msgType) throws IOException, ClassNotFoundException {
 
         int bodyLength = byteBuf.readInt();
         byte[] body = new byte[bodyLength];
@@ -115,10 +116,18 @@ public class ResponseMessageCodec extends MessageToMessageCodec<ByteBuf, Respons
         byteBuf.readBytes(body);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(body);
         SerialInput serialInput = Hessian2SerialInputFactory.createSerialization(inputStream);
-        RegistryInfo registryInfo = serialInput.readObject(RegistryInfo.class);
+        String desc = serialInput.readString();
+        Class<?> clazz = DescClassUtils.desc2class(desc);
+        Object content = serialInput.readObject(clazz);
+
+        byte commandType = (byte) (msgType & HanguCons.COMMAND_MARK);
+        boolean oneWay = (byte) (msgType & MsgTypeMarkEnum.ONE_WAY_FLAG.getMark()) != 0;
+
         Request request = new Request();
         request.setId(id);
-        request.setRegistryInfo(registryInfo);
+        request.setOneWay(oneWay);
+        request.setCommandType(commandType);
+        request.setBody(content);
 
         return request;
     }

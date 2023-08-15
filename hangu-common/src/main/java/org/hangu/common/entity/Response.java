@@ -14,5 +14,7 @@ public class Response implements Serializable {
 
     private Long id;
 
+    private byte commandType;
+
     private RpcResult rpcResult;
 }

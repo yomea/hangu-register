@@ -10,6 +10,19 @@ import lombok.Data;
 @Data
 public class RegistryInfo extends ServerInfo {
 
+    /**
+     * 注册时间，注册中心自动赋值，客户端赋值无效
+     */
+    private Long registerTime;
+
+    /**
+     * 标记该注册数据为注册中心自己注册自己
+     */
+    private boolean center;
+
+    /**
+     * 服务提供者所在的地址
+     */
     private HostInfo hostInfo;
 
     @Override
