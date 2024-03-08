@@ -1,2 +1,2 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-  org.hangu.discover.configuration.HanguClientAutoConfiguration
+  org.hangu.center.discover.configuration.HanguClientAutoConfiguration
