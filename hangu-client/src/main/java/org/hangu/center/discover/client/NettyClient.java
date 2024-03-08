@@ -13,14 +13,14 @@ import io.netty.handler.timeout.IdleStateHandler;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.hangu.center.discover.channel.handler.RequestMessageCodec;
-import org.hangu.center.discover.channel.handler.ResponseMessageHandler;
 import org.hangu.center.common.channel.handler.ByteFrameDecoder;
 import org.hangu.center.common.channel.handler.HeartBeatEncoder;
 import org.hangu.center.common.entity.HostInfo;
 import org.hangu.center.common.properties.TransportProperties;
 import org.hangu.center.discover.channel.handler.HeartBeatPongHandler;
-import org.hangu.center.discover.manager.ConnectManager;
+import org.hangu.center.discover.channel.handler.RequestMessageCodec;
+import org.hangu.center.discover.channel.handler.ResponseMessageHandler;
+import org.hangu.center.discover.manager.CenterConnectManager;
 import org.hangu.center.discover.manager.NettyClientEventLoopManager;
 
 /**
@@ -32,7 +32,7 @@ public class NettyClient {
 
     private Bootstrap bootstrap;
 
-    private ConnectManager connectManager;
+    private CenterConnectManager connectManager;
 
     private TransportProperties transport;
 
@@ -40,10 +40,24 @@ public class NettyClient {
 
     private Channel channel;
 
-    public NettyClient(ConnectManager connectManager, TransportProperties transport, HostInfo hostInfo) {
+    /**
+     * 标记是否为配置中心节点，如果是配置中心节点在重连时需要做些特殊操作
+     */
+    private boolean center;
+
+    public NettyClient(CenterConnectManager connectManager, TransportProperties transport, HostInfo hostInfo) {
         this.connectManager = connectManager;
         this.transport = transport;
         this.hostInfo = hostInfo;
+        this.center = false;
+    }
+
+    public NettyClient(CenterConnectManager connectManager, TransportProperties transport, HostInfo hostInfo,
+        boolean center) {
+        this.connectManager = connectManager;
+        this.transport = transport;
+        this.hostInfo = hostInfo;
+        this.center = center;
     }
 
     public void open() {
@@ -84,7 +98,7 @@ public class NettyClient {
      * @return
      */
     public Channel syncConnect() throws InterruptedException {
-         this.channel = this.bootstrap.connect(hostInfo.getHost(), hostInfo.getPort()).addListener(future -> {
+        this.channel = this.bootstrap.connect(hostInfo.getHost(), hostInfo.getPort()).addListener(future -> {
             if (!future.isSuccess()) {
                 log.error("连接 {}:{} 失败！", hostInfo.getHost(), hostInfo.getPort());
             }
@@ -103,7 +117,7 @@ public class NettyClient {
         });
     }
 
-    public ConnectManager getConnectManager() {
+    public CenterConnectManager getConnectManager() {
         return connectManager;
     }
 

@@ -12,22 +12,22 @@ public class TransportProperties {
     /**
      * 每隔多久心跳一次，默认2s
      */
-    private int heartbeatTimeRate;
+    private int heartbeatTimeRate = 2;
 
     /**
      * 心跳超时倍率，表示几倍的心跳表示超时，默认 3 倍
      * {@link #heartbeatTimeRate * 3}
      */
-    private int heartbeatTimeOutCount;
+    private int heartbeatTimeOutCount = 3;
 
     /**
      * 拉取服务列表超时时间
      */
-    private int pullServiceListTimeout;
+    private int pullServiceListTimeout = 5;
 
     /**
      * 注册服务超时时间
      */
-    private int registryServiceTimeout;
+    private int registryServiceTimeout = 5;
 
 }

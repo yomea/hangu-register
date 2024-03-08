@@ -33,7 +33,7 @@ public class RemoveServerRequestHandler implements RequestHandler<List<RegistryI
     public Response handler(Request<List<RegistryInfo>> request) {
 
         List<RegistryInfo> registryInfos = Optional.ofNullable(request.getBody()).orElse(Collections.emptyList());
-        registryInfos.stream().forEach(serviceRegisterManager::register);
+        registryInfos.stream().forEach(serviceRegisterManager::unRegister);
 
         Response response = new Response();
         response.setId(request.getId());

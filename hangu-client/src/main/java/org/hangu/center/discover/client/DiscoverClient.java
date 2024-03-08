@@ -1,24 +1,20 @@
 package org.hangu.center.discover.client;
 
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelId;
 import io.netty.util.concurrent.DefaultPromise;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.hangu.center.discover.lookup.LookupService;
-import org.hangu.center.discover.manager.ConnectManager;
+import org.hangu.center.common.constant.HanguCons;
 import org.hangu.center.common.entity.HostInfo;
 import org.hangu.center.common.entity.LookupServer;
 import org.hangu.center.common.entity.RegistryInfo;
@@ -32,12 +28,16 @@ import org.hangu.center.common.exception.RpcInvokerTimeoutException;
 import org.hangu.center.common.exception.RpcStarterException;
 import org.hangu.center.common.properties.TransportProperties;
 import org.hangu.center.common.util.CommonUtils;
+import org.hangu.center.discover.lookup.LookupService;
 import org.hangu.center.discover.lookup.RegistryService;
+import org.hangu.center.discover.manager.CenterConnectManager;
 import org.hangu.center.discover.manager.NettyClientEventLoopManager;
 import org.hangu.center.discover.manager.RpcRequestManager;
 import org.hangu.center.discover.properties.ClientProperties;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.context.EnvironmentAware;
+import org.springframework.core.env.Environment;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
@@ -46,16 +46,22 @@ import org.springframework.util.StringUtils;
  * @date 2023/8/11 17:42
  */
 @Slf4j
-public class DiscoverClient implements LookupService, RegistryService, InitializingBean, DisposableBean {
+public class DiscoverClient implements LookupService, RegistryService, InitializingBean, DisposableBean,
+    EnvironmentAware {
 
     private ClientProperties clientProperties;
 
-    private ConnectManager connectManager;
+    private CenterConnectManager connectManager;
 
+    private Environment environment;
+
+    // 标记是否为配置中心节点的客户端
+    private boolean center;
 
     public DiscoverClient(ClientProperties clientProperties) {
         this.clientProperties = clientProperties;
-        this.connectManager = new ConnectManager();
+        this.connectManager = new CenterConnectManager();
+        this.center = false;
     }
 
     @Override
@@ -66,19 +72,21 @@ public class DiscoverClient implements LookupService, RegistryService, Initializ
     @Override
     public void afterPropertiesSet() throws Exception {
 
+        this.center = this.environment.getProperty(HanguCons.CENTER_NODE_MARK, boolean.class, false);
+
         List<HostInfo> hostInfos = this.parseHostInfoAndCheck(clientProperties.getPeerNodeHosts());
         this.parseOtherProperties(clientProperties);
 
         hostInfos.stream().forEach(hostInfo -> {
             try {
                 // 启动netty客户端
-                NettyClient nettyClient = new NettyClient(this.connectManager, clientProperties.getTransport(), hostInfo);
+                NettyClient nettyClient = new NettyClient(this.connectManager, clientProperties.getTransport(),
+                    hostInfo, this.center);
+                this.connectManager.cacheChannel(nettyClient);
                 nettyClient.open();
                 nettyClient.syncConnect();
-                this.connectManager.cacheChannel(nettyClient);
             } catch (Exception e) {
-                throw new RpcStarterException(ErrorCodeEnum.FAILURE.getCode(),
-                    String.format("连接注册中心 %s:%s 失败！请检查地址", hostInfo.getHost(), hostInfo.getPort()), e);
+                log.error(String.format("连接注册中心 %s:%s 失败！请检查地址", hostInfo.getHost(), hostInfo.getPort()), e);
             }
         });
     }
@@ -96,7 +104,7 @@ public class DiscoverClient implements LookupService, RegistryService, Initializ
     }
 
     @Override
-    public List<RegistryInfo> lookup()  throws Exception {
+    public List<RegistryInfo> lookup() throws Exception {
         // 啥都没有指定，表示拉取所有的服务
         return this.lookup(new LookupServer());
     }
@@ -113,12 +121,11 @@ public class DiscoverClient implements LookupService, RegistryService, Initializ
     }
 
     private List<RegistryInfo> doLookupService(Supplier<Request<?>> supplier) throws Exception {
-        Set<ChannelId> exclusionList = new HashSet<>();
         int count = 0;
         Exception ex = null;
 
         while (count < 3) {
-            Channel channel = this.getCenterConnect(exclusionList);
+            Channel channel = this.getCenterConnect();
             Request request = supplier.get();
             DefaultPromise<RpcResult> defaultPromise = new DefaultPromise<>(channel.eventLoop());
             RpcRequestManager.putFuture(request.getId(), defaultPromise);
@@ -131,7 +138,6 @@ public class DiscoverClient implements LookupService, RegistryService, Initializ
             } catch (Exception e) {
                 ex = e;
                 count++;
-                exclusionList.add(channel.id());
             }
         }
         throw ex;
@@ -207,31 +213,27 @@ public class DiscoverClient implements LookupService, RegistryService, Initializ
     public void register(RegistryInfo registryInfo) {
         Channel channel = this.getCenterConnect();
 
-        Request<RegistryInfo> request = new Request<>();
+        Request<List<RegistryInfo>> request = new Request<>();
         request.setId(CommonUtils.snowFlakeNextId());
         request.setCommandType(CommandTypeMarkEnum.BATCH_REGISTER_SERVICE.getType());
-        request.setBody(registryInfo);
+        request.setBody(Collections.singletonList(registryInfo));
 
         DefaultPromise<RpcResult> defaultPromise = new DefaultPromise<>(channel.eventLoop());
         RpcRequestManager.putFuture(request.getId(), defaultPromise);
 
         channel.writeAndFlush(request);
 
-        this.dealResult(defaultPromise, clientProperties.getTransport().getPullServiceListTimeout(), "拉取服务列表");
+        this.dealResult(defaultPromise, clientProperties.getTransport().getRegistryServiceTimeout(), CommandTypeMarkEnum.BATCH_REGISTER_SERVICE.getDesc());
     }
 
     @Override
     public void unRegister(RegistryInfo serverInfo) {
-
+        // TODO:
     }
 
 
     private Channel getCenterConnect() {
-        return this.getCenterConnect(Collections.emptySet());
-    }
-
-    private Channel getCenterConnect(Set<ChannelId> exclusionList) {
-        Optional<Channel> optionalChannel = this.connectManager.randActiveChannel(exclusionList);
+        Optional<Channel> optionalChannel = this.connectManager.pollActiveChannel();
         Channel channel = optionalChannel.orElseThrow(() -> new RpcStarterException(ErrorCodeEnum.NOT_FOUND.getCode(),
             "没获取到可用的注册额中心连接，请检查连接！"));
         return channel;
@@ -275,4 +277,8 @@ public class DiscoverClient implements LookupService, RegistryService, Initializ
         }
     }
 
+    @Override
+    public void setEnvironment(Environment environment) {
+        this.environment = environment;
+    }
 }

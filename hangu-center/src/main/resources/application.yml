@@ -1,7 +1,9 @@
 hangu:
-  rpc:
-    port: 8089
-    peerNodeUrls: http://localhost:9991,http://localhost:9992
+  center:
+    is-node-application: true
+    port: 9991
+#    peer-node-hosts: localhost:9991,localhost:9992
+    peer-node-hosts: localhost:9992
     thread:
-      coreNum: 32
-      maxNum: 32
+      core-num: 32
+      max-num: 32
