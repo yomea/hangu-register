@@ -25,6 +25,11 @@ public class RegistryInfo extends ServerInfo {
      */
     private HostInfo hostInfo;
 
+    /**
+     * 过期时间，该值随着心跳更新
+     */
+    private Long expireTime;
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) {

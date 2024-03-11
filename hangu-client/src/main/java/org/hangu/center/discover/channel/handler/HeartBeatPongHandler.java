@@ -8,6 +8,7 @@ import io.netty.util.concurrent.DefaultPromise;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.entity.RegistryInfo;
+import org.hangu.center.common.entity.RegistryInfoDirectory;
 import org.hangu.center.common.entity.Request;
 import org.hangu.center.common.entity.RpcResult;
 import org.hangu.center.common.enums.CommandTypeMarkEnum;
@@ -91,13 +92,16 @@ public class HeartBeatPongHandler extends ChannelInboundHandlerAdapter {
         request.setId(CommonUtils.snowFlakeNextId());
         if(this.nettyClient.isCenter()) {
             request.setCommandType(CommandTypeMarkEnum.RENEW_AND_DELTA_PULL_SERVICE.getType());
-            RegistryInfo registryInfo = new RegistryInfo();
-            registryInfo.setRegisterTime(System.currentTimeMillis());
-            registryInfo.setHostInfo(this.nettyClient.getHostInfo());
-            request.setBody(registryInfo);
+            RegistryInfoDirectory directory = new RegistryInfoDirectory();
+            // todo：后续记录最大注册时间
+            directory.setRegisterTime(0L);
+            directory.setRegistryInfoList(this.nettyClient.getRegistryInfoList());
+            request.setBody(directory);
         } else {
             request.setCommandType(CommandTypeMarkEnum.RENEW_SERVICE.getType());
-            request.setBody(this.nettyClient.getHostInfo());
+            RegistryInfoDirectory directory = new RegistryInfoDirectory();
+            directory.setRegistryInfoList(this.nettyClient.getRegistryInfoList());
+            request.setBody(directory);
         }
         return request;
     }

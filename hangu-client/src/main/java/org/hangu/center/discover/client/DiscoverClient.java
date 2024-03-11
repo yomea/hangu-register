@@ -234,6 +234,7 @@ public class DiscoverClient implements LookupService, RegistryService, Initializ
 
         this.dealResult(nettyClient, defaultPromise, clientProperties.getTransport().getRegistryServiceTimeout(),
             CommandTypeMarkEnum.BATCH_REGISTER_SERVICE.getDesc());
+        nettyClient.addRegistryInfo(registryInfo);
     }
 
     @Override

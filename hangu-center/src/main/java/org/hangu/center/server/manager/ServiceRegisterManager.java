@@ -2,16 +2,12 @@ package org.hangu.center.server.manager;
 
 import cn.hutool.core.net.NetUtil;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -20,20 +16,17 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.constant.HanguCons;
 import org.hangu.center.common.entity.HostInfo;
-import org.hangu.center.common.entity.InstanceInfo;
 import org.hangu.center.common.entity.LookupServer;
 import org.hangu.center.common.entity.RegistryInfo;
+import org.hangu.center.common.enums.ServerStatusEnum;
 import org.hangu.center.common.exception.NoServerAvailableException;
-import org.hangu.center.common.exception.RpcStarterException;
 import org.hangu.center.common.properties.TransportProperties;
 import org.hangu.center.common.util.CommonUtils;
 import org.hangu.center.discover.client.DiscoverClient;
 import org.hangu.center.discover.lookup.LookupService;
-import org.hangu.center.common.enums.ServerStatusEnum;
 import org.hangu.center.server.properties.CenterProperties;
 import org.hangu.center.server.server.CenterServer;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -56,12 +49,9 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
      * key -> groupName + "/" + version + "/" + interfaceName
      * value -> 地址集合
      */
-    private final Map<String, Set<RegistryInfo>> serviceKeyMapHostInfos = new ConcurrentHashMap<>(DEFAULT_SIZE);
+    private final Map<String, Map<HostInfo, RegistryInfo>> serviceKeyMapHostInfos = new ConcurrentHashMap<>(
+        DEFAULT_SIZE);
 
-    /**
-     * 机器 -》 实例相关信息，比如是否仍有心跳之类的
-     */
-    private final Map<HostInfo, InstanceInfo> infoInstanceInfoMap = new ConcurrentHashMap<>(DEFAULT_SIZE);
 
     private CenterServer centerServer;
 
@@ -94,19 +84,22 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
     @Override
     public List<RegistryInfo> lookup(LookupServer serverInfo) {
         String key = CommonUtils.createServiceKey(serverInfo);
-        Set<RegistryInfo> registryInfos = this.serviceKeyMapHostInfos.getOrDefault(key, Collections.emptySet());
+        List<RegistryInfo> registryInfos = this.serviceKeyMapHostInfos.getOrDefault(key, Collections.emptyMap())
+            .values().stream().collect(Collectors.toList());
         Long afterRegisterTime = serverInfo.getAfterRegisterTime();
         // 如果有指定注册时间，那么增量拉取注册的服务
         if (Objects.nonNull(afterRegisterTime) && afterRegisterTime > 0) {
             registryInfos = registryInfos.stream().filter(info -> info.getRegisterTime() >= afterRegisterTime)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toList());
         }
         return this.filterExpireRegistryInfos(registryInfos);
     }
 
     @Override
     public List<RegistryInfo> lookup() {
-        Set<RegistryInfo> registryInfoSet = this.serviceKeyMapHostInfos.values().stream().flatMap(Collection::stream).collect(Collectors.toSet());
+        List<RegistryInfo> registryInfoSet = this.serviceKeyMapHostInfos.values().stream()
+            .flatMap(e -> e.values().stream())
+            .collect(Collectors.toList());
         return this.filterExpireRegistryInfos(registryInfoSet);
     }
 
@@ -120,7 +113,7 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
 
     @Override
     public void afterPropertiesSet() throws Exception {
-        this.bindLocalhost();
+        this.bindLocalHost();
         // 从其他节点同步注册信息
         // 将自己注册到其他的节点上，用于监控在线的节点
         this.syncAndRegisterSelf();
@@ -128,6 +121,13 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
         this.startClearTask();
         // 启动从其他节点上增量同步注册信息的任务
         this.startDeltaSynOtherNodes();
+    }
+
+    private void bindLocalHost() {
+        HostInfo hostInfo = new HostInfo();
+        hostInfo.setHost(NetUtil.getLocalhost().getHostAddress());
+        hostInfo.setPort(this.centerProperties.getPort());
+        this.hostInfo = hostInfo;
     }
 
     private void syncAndRegisterSelf() {
@@ -184,62 +184,37 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
 
     private void doClearExpireData() {
         synchronized (LOCK) {
-            List<HostInfo> removeHostInfos = new ArrayList<>();
             serviceKeyMapHostInfos.entrySet().stream().forEach(entry -> {
-                Set<RegistryInfo> registryInfoSet = entry.getValue();
-                Iterator<RegistryInfo> iterator = registryInfoSet.iterator();
-                while (iterator.hasNext()) {
-                    RegistryInfo registryInfo = iterator.next();
-                    InstanceInfo instanceInfo = infoInstanceInfoMap.get(registryInfo.getHostInfo());
-                    if (Objects.isNull(instanceInfo)) {
-                        iterator.remove();
-                    } else {
-                        if (System.currentTimeMillis() > instanceInfo.getExpireTime()) {
-                            iterator.remove();
-                            removeHostInfos.add(registryInfo.getHostInfo());
-                        }
+                Map<HostInfo, RegistryInfo> registryInfoMap = entry.getValue();
+                List<HostInfo> removeHostInfos = new ArrayList<>();
+                registryInfoMap.forEach((hostInfo, registryInfo) -> {
+                    if (System.currentTimeMillis() > registryInfo.getExpireTime()) {
+                        removeHostInfos.add(hostInfo);
                     }
-                }
+                });
 
+                removeHostInfos.stream().forEach(registryInfoMap::remove);
             });
-            removeHostInfos.stream().forEach(infoInstanceInfoMap::remove);
-            List<String> removeKeys = serviceKeyMapHostInfos.entrySet().stream()
-                .filter(entry -> CollectionUtils.isEmpty(entry.getValue()))
-                .map(Entry::getKey).collect(Collectors.toList());
-            removeKeys.stream().forEach(serviceKeyMapHostInfos::remove);
         }
     }
 
     public void register(RegistryInfo registryInfo) {
         String key = CommonUtils.createServiceKey(registryInfo);
         synchronized (LOCK) {
-            Set<RegistryInfo> registryInfoSet = serviceKeyMapHostInfos.get(key);
-            if (Objects.isNull(registryInfoSet)) {
-                registryInfoSet = new HashSet<>();
-                serviceKeyMapHostInfos.put(key, registryInfoSet);
+            Map<HostInfo, RegistryInfo> hostInfoRegistryInfoMap = serviceKeyMapHostInfos.get(key);
+            if (Objects.isNull(hostInfoRegistryInfoMap)) {
+                hostInfoRegistryInfoMap = new HashMap<>();
+                serviceKeyMapHostInfos.put(key, hostInfoRegistryInfoMap);
             }
             registryInfo.setRegisterTime(System.currentTimeMillis());
-            registryInfoSet.add(registryInfo);
-
-            HostInfo hostInfo = registryInfo.getHostInfo();
-            InstanceInfo instanceInfo = infoInstanceInfoMap.get(hostInfo);
-            if (Objects.isNull(instanceInfo)) {
-                instanceInfo = new InstanceInfo();
-                instanceInfo.setHostInfo(hostInfo);
-                instanceInfo.setExpireTime(System.currentTimeMillis() + this.heartExpireTimes);
-
-                infoInstanceInfoMap.put(hostInfo, instanceInfo);
-            }
+            registryInfo.setExpireTime(System.currentTimeMillis() + this.heartExpireTimes);
+            hostInfoRegistryInfoMap.put(registryInfo.getHostInfo(), registryInfo);
         }
     }
 
     public void unRegister(RegistryInfo registryInfo) {
         String key = CommonUtils.createServiceKey(registryInfo);
         serviceKeyMapHostInfos.remove(key);
-    }
-
-    public void unRegister(HostInfo hostInfo) {
-        infoInstanceInfoMap.remove(hostInfo);
     }
 
     private void registerSelfToOtherNodes() {
@@ -254,13 +229,6 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
             registryInfo.setHostInfo(this.hostInfo);
             this.doRegisterSelfToOtherNodes(registryInfo);
         }
-    }
-
-    private void bindLocalhost() {
-        HostInfo hostInfo = new HostInfo();
-        hostInfo.setHost(NetUtil.getLocalhost().getHostAddress());
-        hostInfo.setPort(centerProperties.getPort());
-        this.hostInfo = hostInfo;
     }
 
     private void doRegisterSelfToOtherNodes(RegistryInfo registryInfo) {
@@ -279,16 +247,22 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
      *
      * @return
      */
-    private List<RegistryInfo> filterExpireRegistryInfos(Set<RegistryInfo> registryInfoSet) {
+    private List<RegistryInfo> filterExpireRegistryInfos(List<RegistryInfo> registryInfoSet) {
         return registryInfoSet.stream()
-            .filter(e -> System.currentTimeMillis() <= e.getRegisterTime())
+            .filter(e -> System.currentTimeMillis() <= e.getExpireTime())
             .collect(Collectors.toList());
     }
 
-    public void renew(HostInfo hostInfo) {
-        InstanceInfo instanceInfo = this.infoInstanceInfoMap.get(hostInfo);
-        if(Objects.nonNull(instanceInfo)) {
-            instanceInfo.setExpireTime(System.currentTimeMillis() + this.heartExpireTimes);
-        }
+    public void renew(List<RegistryInfo> registryInfoList) {
+        Optional.ofNullable(registryInfoList).orElse(Collections.emptyList()).stream().forEach(registryInfo -> {
+            String key = CommonUtils.createServiceKey(registryInfo);
+            RegistryInfo exists = serviceKeyMapHostInfos.getOrDefault(key, Collections.emptyMap())
+                .get(registryInfo.getHostInfo());
+            if (Objects.nonNull(exists)) {
+                exists.setExpireTime(System.currentTimeMillis() + this.heartExpireTimes);
+            } else {
+                this.register(registryInfo);
+            }
+        });
     }
 }

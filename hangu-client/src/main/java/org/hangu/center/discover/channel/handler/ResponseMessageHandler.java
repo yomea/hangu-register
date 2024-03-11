@@ -48,9 +48,8 @@ public class ResponseMessageHandler extends SimpleChannelInboundHandler<Response
         future.trySuccess(rpcResult);
         byte commandType = response.getCommandType();
         ResponseHandler responseHandler = ResponseHandlerFactory.getResponseHandlerByType(commandType);
-        if(Objects.isNull(responseHandler)) {
-            log.error("commonType为{}的响应处理器不存在！", commandType);
-        } else {
+        // 有自定义处理的，走这里
+        if(Objects.nonNull(responseHandler)) {
             responseHandler.handler(response, this.nettyClient);
         }
     }

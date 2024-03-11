@@ -10,11 +10,14 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.timeout.IdleStateHandler;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.channel.handler.ByteFrameDecoder;
 import org.hangu.center.common.entity.HostInfo;
+import org.hangu.center.common.entity.RegistryInfo;
 import org.hangu.center.common.enums.ServerStatusEnum;
 import org.hangu.center.common.properties.TransportProperties;
 import org.hangu.center.discover.channel.handler.HeartBeatPongHandler;
@@ -46,6 +49,8 @@ public class NettyClient {
     private boolean center;
 
     private ServerStatusEnum status = ServerStatusEnum.UN_KNOW;
+
+    private List<RegistryInfo> registryInfoList = new ArrayList<>();
 
     public NettyClient(CenterConnectManager connectManager, TransportProperties transport, HostInfo hostInfo) {
         this.connectManager = connectManager;
@@ -152,5 +157,13 @@ public class NettyClient {
 
     public void setStatus(ServerStatusEnum status) {
         this.status = status;
+    }
+
+    public List<RegistryInfo> getRegistryInfoList() {
+        return registryInfoList;
+    }
+
+    public void addRegistryInfo(RegistryInfo registryInfo) {
+        this.registryInfoList.add(registryInfo);
     }
 }

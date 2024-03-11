@@ -1,6 +1,6 @@
 package org.hangu.center.server.bussiness.handler.impl;
 
-import org.hangu.center.common.entity.HostInfo;
+import org.hangu.center.common.entity.RegistryInfoDirectory;
 import org.hangu.center.common.entity.Request;
 import org.hangu.center.common.entity.Response;
 import org.hangu.center.common.entity.RpcResult;
@@ -18,7 +18,7 @@ import org.springframework.stereotype.Service;
  * @date 2023/8/14 16:24
  */
 @Service
-public class RenewServerRequestHandler implements RequestHandler<HostInfo> {
+public class RenewServerRequestHandler implements RequestHandler<RegistryInfoDirectory> {
 
     @Autowired
     private ServiceRegisterManager serviceRegisterManager;
@@ -29,10 +29,10 @@ public class RenewServerRequestHandler implements RequestHandler<HostInfo> {
     }
 
     @Override
-    public Response handler(Request<HostInfo> request, ServerStatusEnum status) {
+    public Response handler(Request<RegistryInfoDirectory> request, ServerStatusEnum status) {
 
-        HostInfo hostInfo = request.getBody();
-        serviceRegisterManager.renew(hostInfo);
+        RegistryInfoDirectory directory = request.getBody();
+        serviceRegisterManager.renew(directory.getRegistryInfoList());
         Response response = new Response();
         response.setId(request.getId());
         response.setCommandType(request.getCommandType());

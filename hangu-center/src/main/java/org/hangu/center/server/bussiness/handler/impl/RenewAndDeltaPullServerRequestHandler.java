@@ -5,6 +5,7 @@ import java.util.Objects;
 import org.hangu.center.common.entity.CenterNodeInfo;
 import org.hangu.center.common.entity.HostInfo;
 import org.hangu.center.common.entity.RegistryInfo;
+import org.hangu.center.common.entity.RegistryInfoDirectory;
 import org.hangu.center.common.entity.Request;
 import org.hangu.center.common.entity.Response;
 import org.hangu.center.common.entity.RpcResult;
@@ -22,7 +23,7 @@ import org.springframework.stereotype.Service;
  * @date 2023/8/14 16:24
  */
 @Service
-public class RenewAndDeltaPullServerRequestHandler implements RequestHandler<RegistryInfo> {
+public class RenewAndDeltaPullServerRequestHandler implements RequestHandler<RegistryInfoDirectory> {
 
     @Autowired
     private ServiceRegisterManager serviceRegisterManager;
@@ -33,11 +34,10 @@ public class RenewAndDeltaPullServerRequestHandler implements RequestHandler<Reg
     }
 
     @Override
-    public Response handler(Request<RegistryInfo> request, ServerStatusEnum status) {
+    public Response handler(Request<RegistryInfoDirectory> request, ServerStatusEnum status) {
         // 拉取服务列表
-        RegistryInfo registryInfo = request.getBody();
-        HostInfo hostInfo = registryInfo.getHostInfo();
-        serviceRegisterManager.renew(hostInfo);
+        RegistryInfoDirectory registryInfo = request.getBody();
+        serviceRegisterManager.renew(registryInfo.getRegistryInfoList());
         Long afterRegisterTime = registryInfo.getRegisterTime();
         afterRegisterTime = Objects.isNull(afterRegisterTime) ? 0L : afterRegisterTime;
         List<RegistryInfo> infos = serviceRegisterManager.lookupAfterTime(afterRegisterTime);
