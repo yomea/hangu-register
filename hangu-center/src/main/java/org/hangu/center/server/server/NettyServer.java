@@ -14,13 +14,15 @@ import io.netty.handler.timeout.IdleStateHandler;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.hangu.center.common.channel.handler.ByteFrameDecoder;
+import org.hangu.center.common.constant.HanguCons;
+import org.hangu.center.common.enums.ErrorCodeEnum;
+import org.hangu.center.common.exception.RpcStarterException;
 import org.hangu.center.server.channel.handler.HeartBeatPingHandler;
 import org.hangu.center.server.channel.handler.RequestMessageHandler;
 import org.hangu.center.server.channel.handler.ResponseMessageCodec;
+import org.hangu.center.common.enums.ServerStatusEnum;
 import org.hangu.center.server.properties.CenterProperties;
-import org.hangu.center.common.channel.handler.ByteFrameDecoder;
-import org.hangu.center.common.channel.handler.HeartBeatEncoder;
-import org.hangu.center.common.constant.HanguCons;
 
 /**
  * @author wuzhenhong
@@ -36,6 +38,11 @@ public class NettyServer {
     private NioEventLoopGroup boss;
 
     private NioEventLoopGroup worker;
+
+    /**
+     * @see ServerStatusEnum
+     */
+    private ServerStatusEnum status = ServerStatusEnum.STOP;
 
     public void start(CenterProperties properties, Executor executor) {
 
@@ -57,25 +64,24 @@ public class NettyServer {
                             .addLast(new ByteFrameDecoder())
                             // 用于编解码
                             .addLast(new ResponseMessageCodec())
-                            // 用于心跳编码
-                            .addLast(new HeartBeatEncoder())
                             .addLast("logging", loggingHandler)
                             // 读写时间超过8s，表示该链接已失效
                             .addLast(new IdleStateHandler(0, 0, 8, TimeUnit.SECONDS))
                             // 心跳处理器
                             .addLast(new HeartBeatPingHandler())
                             // 请求事件处理器，用于调用业务逻辑
-                            .addLast(new RequestMessageHandler(executor));
+                            .addLast(new RequestMessageHandler(NettyServer.this, executor));
                     }
                 });
             channel = serverBootstrap.bind(properties.getPort()).addListener(future -> {
                 if (!future.isSuccess()) {
                     log.error("服务启动失败---》绑定失败！！！");
                 }
-            }).channel();
+            }).sync().channel();
         } catch (Exception e) {
             log.error("启动服务失败！", e);
             this.close();
+            throw new RpcStarterException(ErrorCodeEnum.FAILURE.getCode(), "启动服务失败！", e);
         }
     }
 
@@ -96,5 +102,13 @@ public class NettyServer {
         } catch (Throwable e) {
             log.warn(e.getMessage(), e);
         }
+    }
+
+    public ServerStatusEnum getStatus() {
+        return status;
+    }
+
+    public void setStatus(ServerStatusEnum status) {
+        this.status = status;
     }
 }

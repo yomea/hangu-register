@@ -1,11 +1,10 @@
 package org.hangu.center.server.channel.handler;
 
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import lombok.extern.slf4j.Slf4j;
-import org.hangu.center.common.entity.PingPong;
 
 /**
  * 处理来自客户端的心跳
@@ -14,12 +13,11 @@ import org.hangu.center.common.entity.PingPong;
  * @date 2023/7/31 17:56
  */
 @Slf4j
-public class HeartBeatPingHandler extends SimpleChannelInboundHandler<PingPong> {
+public class HeartBeatPingHandler extends ChannelInboundHandlerAdapter {
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, PingPong msg) throws Exception {
-        // 回复心跳，表示链接是通的
-        ctx.writeAndFlush(msg);
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        super.channelRead(ctx, msg);
     }
 
     @Override

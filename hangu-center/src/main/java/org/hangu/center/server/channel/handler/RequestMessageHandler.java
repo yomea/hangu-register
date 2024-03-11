@@ -3,10 +3,11 @@ package org.hangu.center.server.channel.handler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import java.util.concurrent.Executor;
-import org.hangu.center.server.bussiness.handler.RequestHandler;
-import org.hangu.center.server.bussiness.handler.RequestHandlerFactory;
 import org.hangu.center.common.entity.Request;
 import org.hangu.center.common.entity.Response;
+import org.hangu.center.server.bussiness.handler.RequestHandler;
+import org.hangu.center.server.bussiness.handler.RequestHandlerFactory;
+import org.hangu.center.server.server.NettyServer;
 
 /**
  * 处理请求消息
@@ -16,10 +17,23 @@ import org.hangu.center.common.entity.Response;
  */
 public class RequestMessageHandler extends SimpleChannelInboundHandler<Request> {
 
+    private NettyServer nettyServer;
     private Executor executor;
 
-    public RequestMessageHandler(Executor executor) {
+
+    public RequestMessageHandler(NettyServer nettyServer, Executor executor) {
+        this.nettyServer = nettyServer;
         this.executor = executor;
+    }
+
+    @Override
+    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+        super.channelUnregistered(ctx);
+    }
+
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        super.channelActive(ctx);
     }
 
     @Override
@@ -28,7 +42,7 @@ public class RequestMessageHandler extends SimpleChannelInboundHandler<Request> 
         byte commonType = request.getCommandType();
         RequestHandler requestHandler = RequestHandlerFactory.getRequestHandlerByType(commonType);
         this.executor.execute(() -> {
-            Response response = requestHandler.handler(request);
+            Response response = requestHandler.handler(request, this.nettyServer.getStatus());
             if(!request.isOneWay()) {
                 ctx.channel().writeAndFlush(response);
             }

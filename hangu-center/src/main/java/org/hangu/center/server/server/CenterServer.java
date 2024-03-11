@@ -5,9 +5,10 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import org.hangu.center.server.properties.CenterProperties;
-import org.hangu.center.common.properties.ThreadProperties;
 import org.hangu.center.common.constant.HanguCons;
+import org.hangu.center.common.properties.ThreadProperties;
+import org.hangu.center.common.enums.ServerStatusEnum;
+import org.hangu.center.server.properties.CenterProperties;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 
@@ -29,6 +30,7 @@ public class CenterServer implements InitializingBean, DisposableBean {
     @Override
     public void afterPropertiesSet() throws Exception {
         this.initServer();
+        this.nettyServer.setStatus(ServerStatusEnum.READY);
     }
 
     @Override
@@ -48,6 +50,14 @@ public class CenterServer implements InitializingBean, DisposableBean {
         this.executor = new ThreadPoolExecutor(coreNum, maxNum, 10, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1000));
         this.nettyServer = new NettyServer();
         nettyServer.start(this.centerProperties, executor);
+    }
+
+    public ServerStatusEnum getStatus() {
+        return this.nettyServer.getStatus();
+    }
+
+    public void setStatus(ServerStatusEnum status) {
+        this.nettyServer.setStatus(status);
     }
 
 }

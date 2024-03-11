@@ -35,4 +35,25 @@ public class CenterConnectManager {
         }
         return Optional.ofNullable(channelList.get(Math.abs(idx.getAndIncrement() % channelList.size())));
     }
+
+    public Optional<NettyClient> pollActiveAndCompleteChannel(List<NettyClient> exclusionList) {
+        List<NettyClient> channelList = centerChannelList.stream()
+            .filter(NettyClient::isActive)
+            .filter(e -> {
+                boolean exists = false;
+                for(NettyClient exclusion : exclusionList) {
+                    if(e == exclusion) {
+                        exists = true;
+                        break;
+                    }
+                }
+                return !exists;
+            })
+            .filter(e -> e.isUnKnow() || e.isComplete()).collect(Collectors.toList());
+
+        if (CollectionUtils.isEmpty(channelList)) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(channelList.get(Math.abs(idx.getAndIncrement() % channelList.size())));
+    }
 }

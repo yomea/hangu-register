@@ -3,7 +3,6 @@ package org.hangu.center.server.bussiness.handler.impl;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import org.hangu.center.server.bussiness.handler.RequestHandler;
 import org.hangu.center.server.manager.ServiceRegisterManager;
 import org.hangu.center.common.entity.RegistryInfo;
 import org.hangu.center.common.entity.Request;
@@ -19,7 +18,7 @@ import org.springframework.stereotype.Service;
  * @date 2023/8/14 16:24
  */
 @Service
-public class RemoveServerRequestHandler implements RequestHandler<List<RegistryInfo>> {
+public class RemoveServerRequestHandler extends AbstractRequestHandler<List<RegistryInfo>> {
 
     @Autowired
     private ServiceRegisterManager serviceRegisterManager;
@@ -30,7 +29,7 @@ public class RemoveServerRequestHandler implements RequestHandler<List<RegistryI
     }
 
     @Override
-    public Response handler(Request<List<RegistryInfo>> request) {
+    public Response doHandler(Request<List<RegistryInfo>> request) {
 
         List<RegistryInfo> registryInfos = Optional.ofNullable(request.getBody()).orElse(Collections.emptyList());
         registryInfos.stream().forEach(serviceRegisterManager::unRegister);

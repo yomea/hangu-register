@@ -3,6 +3,7 @@ package org.hangu.center.server.bussiness.handler;
 import org.hangu.center.common.entity.Request;
 import org.hangu.center.common.entity.Response;
 import org.hangu.center.common.enums.CommandTypeMarkEnum;
+import org.hangu.center.common.enums.ServerStatusEnum;
 
 /**
  * @author wuzhenhong
@@ -12,5 +13,5 @@ public interface RequestHandler<T> {
 
     CommandTypeMarkEnum support();
 
-    Response handler(Request<T> request);
+    Response handler(Request<T> request, ServerStatusEnum status);
 }

@@ -28,7 +28,7 @@ public class HanguCenterAutoConfiguration {
     }
 
     @Bean
-    public ServiceRegisterManager serviceRegisterManager() {
-        return new ServiceRegisterManager(discoverClient, centerProperties);
+    public ServiceRegisterManager serviceRegisterManager(CenterServer centerServer) {
+        return new ServiceRegisterManager(centerServer, discoverClient, centerProperties);
     }
 }

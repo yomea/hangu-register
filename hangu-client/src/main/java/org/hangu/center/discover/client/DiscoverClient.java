@@ -23,9 +23,12 @@ import org.hangu.center.common.entity.RpcResult;
 import org.hangu.center.common.entity.ServerInfo;
 import org.hangu.center.common.enums.CommandTypeMarkEnum;
 import org.hangu.center.common.enums.ErrorCodeEnum;
+import org.hangu.center.common.enums.ServerStatusEnum;
+import org.hangu.center.common.exception.NoServerAvailableException;
 import org.hangu.center.common.exception.RpcInvokerException;
 import org.hangu.center.common.exception.RpcInvokerTimeoutException;
 import org.hangu.center.common.exception.RpcStarterException;
+import org.hangu.center.common.exception.ServerNodeUnCompleteException;
 import org.hangu.center.common.properties.TransportProperties;
 import org.hangu.center.common.util.CommonUtils;
 import org.hangu.center.discover.lookup.LookupService;
@@ -86,7 +89,8 @@ public class DiscoverClient implements LookupService, RegistryService, Initializ
                 nettyClient.open();
                 nettyClient.syncConnect();
             } catch (Exception e) {
-                log.error(String.format("连接注册中心 %s:%s 失败！请检查地址", hostInfo.getHost(), hostInfo.getPort()), e);
+                log.error(String.format("连接注册中心 %s:%s 失败！请检查地址", hostInfo.getHost(), hostInfo.getPort()),
+                    e);
             }
         });
     }
@@ -123,21 +127,25 @@ public class DiscoverClient implements LookupService, RegistryService, Initializ
     private List<RegistryInfo> doLookupService(Supplier<Request<?>> supplier) throws Exception {
         int count = 0;
         Exception ex = null;
-
+        List<NettyClient> exclusionList = new ArrayList<>();
+        NettyClient nettyClient;
         while (count < 3) {
-            Channel channel = this.getCenterConnect();
+            nettyClient = this.getCenterConnect(exclusionList);
             Request request = supplier.get();
-            DefaultPromise<RpcResult> defaultPromise = new DefaultPromise<>(channel.eventLoop());
+            DefaultPromise<RpcResult> defaultPromise = new DefaultPromise<>(nettyClient.getChannel().eventLoop());
             RpcRequestManager.putFuture(request.getId(), defaultPromise);
 
             try {
-                channel.writeAndFlush(request);
+                nettyClient.getChannel().writeAndFlush(request);
 
-                return dealResult(defaultPromise,
+                return dealResult(nettyClient, defaultPromise,
                     clientProperties.getTransport().getPullServiceListTimeout(), "拉取服务列表");
+            } catch (NoServerAvailableException e) {
+                throw e;
             } catch (Exception e) {
                 ex = e;
                 count++;
+                exclusionList.add(nettyClient);
             }
         }
         throw ex;
@@ -211,7 +219,8 @@ public class DiscoverClient implements LookupService, RegistryService, Initializ
 
     @Override
     public void register(RegistryInfo registryInfo) {
-        Channel channel = this.getCenterConnect();
+        NettyClient nettyClient = this.getCenterConnect(Collections.emptyList());
+        Channel channel = nettyClient.getChannel();
 
         Request<List<RegistryInfo>> request = new Request<>();
         request.setId(CommonUtils.snowFlakeNextId());
@@ -223,7 +232,8 @@ public class DiscoverClient implements LookupService, RegistryService, Initializ
 
         channel.writeAndFlush(request);
 
-        this.dealResult(defaultPromise, clientProperties.getTransport().getRegistryServiceTimeout(), CommandTypeMarkEnum.BATCH_REGISTER_SERVICE.getDesc());
+        this.dealResult(nettyClient, defaultPromise, clientProperties.getTransport().getRegistryServiceTimeout(),
+            CommandTypeMarkEnum.BATCH_REGISTER_SERVICE.getDesc());
     }
 
     @Override
@@ -232,14 +242,16 @@ public class DiscoverClient implements LookupService, RegistryService, Initializ
     }
 
 
-    private Channel getCenterConnect() {
-        Optional<Channel> optionalChannel = this.connectManager.pollActiveChannel();
-        Channel channel = optionalChannel.orElseThrow(() -> new RpcStarterException(ErrorCodeEnum.NOT_FOUND.getCode(),
-            "没获取到可用的注册额中心连接，请检查连接！"));
-        return channel;
+    private NettyClient getCenterConnect(List<NettyClient> exclusionList) {
+        Optional<NettyClient> optionalChannel = this.connectManager.pollActiveAndCompleteChannel(exclusionList);
+        NettyClient nettyClient = optionalChannel.orElseThrow(
+            () -> new NoServerAvailableException(ErrorCodeEnum.NOT_FOUND.getCode(),
+                "没获取到可用的注册额中心连接，请检查连接！"));
+        return nettyClient;
     }
 
-    private <T> T dealResult(DefaultPromise<RpcResult> defaultPromise, int timeout, String errorMsgPrefix) {
+    private <T> T dealResult(NettyClient nettyClient, DefaultPromise<RpcResult> defaultPromise, int timeout,
+        String errorMsgPrefix) {
 
         try {
             RpcResult result = defaultPromise.get(timeout,
@@ -248,6 +260,11 @@ public class DiscoverClient implements LookupService, RegistryService, Initializ
             Object body = result.getResult();
             if (code == ErrorCodeEnum.SUCCESS.getCode()) {
                 return (T) body;
+            }
+            if (body instanceof ServerNodeUnCompleteException) {
+                ServerNodeUnCompleteException serverNodeUnCompleteException = (ServerNodeUnCompleteException) body;
+                nettyClient.setStatus(ServerStatusEnum.getEnumByStatus(serverNodeUnCompleteException.getStatus()));
+                throw serverNodeUnCompleteException;
             }
             if (body instanceof RpcInvokerException) {
                 throw (RpcInvokerException) body;

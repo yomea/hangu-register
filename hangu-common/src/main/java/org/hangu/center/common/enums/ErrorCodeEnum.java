@@ -12,6 +12,7 @@ import lombok.Getter;
 public enum ErrorCodeEnum {
 
     SUCCESS(200, "请求成功！"),
+    STATUS_UN_COMPLETE(300, "服务状态未完成！"),
     FAILURE(500, "调用错误！"),
     
     TIME_OUT(502, "调用超时！"),

@@ -23,12 +23,15 @@ import org.hangu.center.common.entity.HostInfo;
 import org.hangu.center.common.entity.InstanceInfo;
 import org.hangu.center.common.entity.LookupServer;
 import org.hangu.center.common.entity.RegistryInfo;
+import org.hangu.center.common.exception.NoServerAvailableException;
 import org.hangu.center.common.exception.RpcStarterException;
 import org.hangu.center.common.properties.TransportProperties;
 import org.hangu.center.common.util.CommonUtils;
 import org.hangu.center.discover.client.DiscoverClient;
 import org.hangu.center.discover.lookup.LookupService;
+import org.hangu.center.common.enums.ServerStatusEnum;
 import org.hangu.center.server.properties.CenterProperties;
+import org.hangu.center.server.server.CenterServer;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
@@ -60,6 +63,8 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
      */
     private final Map<HostInfo, InstanceInfo> infoInstanceInfoMap = new ConcurrentHashMap<>(DEFAULT_SIZE);
 
+    private CenterServer centerServer;
+
     private DiscoverClient discoverClient;
 
     private TransportProperties transportProperties;
@@ -70,14 +75,20 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
 
     private HostInfo hostInfo;
 
-    public ServiceRegisterManager(DiscoverClient discoverClient, CenterProperties centerProperties) {
+    private long heartExpireTimes;
+
+    public ServiceRegisterManager(CenterServer centerServer, DiscoverClient discoverClient,
+        CenterProperties centerProperties) {
+        this.centerServer = centerServer;
         this.discoverClient = discoverClient;
         this.centerProperties = centerProperties;
         this.transportProperties = centerProperties.getTransport();
         this.scheduledExecutorService = new ScheduledThreadPoolExecutor(HanguCons.CPUS);
-        if(Objects.isNull(this.transportProperties)) {
+        if (Objects.isNull(this.transportProperties)) {
             this.transportProperties = new TransportProperties();
         }
+        this.heartExpireTimes = transportProperties.getHeartbeatTimeRate()
+            * transportProperties.getHeartbeatTimeOutCount() * 1000L;
     }
 
     @Override
@@ -85,17 +96,18 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
         String key = CommonUtils.createServiceKey(serverInfo);
         Set<RegistryInfo> registryInfos = this.serviceKeyMapHostInfos.getOrDefault(key, Collections.emptySet());
         Long afterRegisterTime = serverInfo.getAfterRegisterTime();
+        // 如果有指定注册时间，那么增量拉取注册的服务
         if (Objects.nonNull(afterRegisterTime) && afterRegisterTime > 0) {
             registryInfos = registryInfos.stream().filter(info -> info.getRegisterTime() >= afterRegisterTime)
                 .collect(Collectors.toSet());
         }
-
-        return registryInfos.stream().collect(Collectors.toList());
+        return this.filterExpireRegistryInfos(registryInfos);
     }
 
     @Override
     public List<RegistryInfo> lookup() {
-        return this.serviceKeyMapHostInfos.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+        Set<RegistryInfo> registryInfoSet = this.serviceKeyMapHostInfos.values().stream().flatMap(Collection::stream).collect(Collectors.toSet());
+        return this.filterExpireRegistryInfos(registryInfoSet);
     }
 
     @Override
@@ -122,11 +134,13 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
 
         String peerNodeHosts = this.centerProperties.getPeerNodeHosts();
         // 只有配置了有其他的节点，才会调用
-        if(StringUtils.hasText(peerNodeHosts)) {
+        if (StringUtils.hasText(peerNodeHosts)) {
             // 从其他节点同步注册信息
             this.syncOtherNodesInfo();
             // 将自己注册到其他的节点上，用于监控在线的节点
             this.registerSelfToOtherNodes();
+        } else {
+            centerServer.setStatus(ServerStatusEnum.COMPLETE);
         }
     }
 
@@ -151,10 +165,16 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
             List<RegistryInfo> infos = Optional.ofNullable(discoverClient.lookup())
                 .orElse(Collections.emptyList());
             infos.stream().forEach(this::register);
-        } catch (RpcStarterException e) {
-            log.error("从其他节点同步注册信息失败！原因：{}", e.getMessage(), e);
+            centerServer.setStatus(ServerStatusEnum.COMPLETE);
+        } catch (NoServerAvailableException e) {
+            // 没有可用链接的时候，有可能该节点是第一个启动的，允许提供服务，也有可能其他的服务全tm都挂了，也要提供服务
+            // 也有可能就这台机器连不同其他的节点（除非不是同一网段，一般可能性小）
+            centerServer.setStatus(ServerStatusEnum.COMPLETE);
+            log.error("从其他节点同步注册信息失败！原因：{}，2s后重试", e.getMessage(), e);
+            this.scheduledExecutorService.schedule(this::syncOtherNodesInfo, 2, TimeUnit.SECONDS);
         } catch (Exception e) {
-            log.error("从其他节点同步注册信息失败！", e);
+            log.error("从其他节点同步注册信息失败！2s后重试", e);
+            this.scheduledExecutorService.schedule(this::syncOtherNodesInfo, 2, TimeUnit.SECONDS);
         }
     }
 
@@ -206,8 +226,7 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
             if (Objects.isNull(instanceInfo)) {
                 instanceInfo = new InstanceInfo();
                 instanceInfo.setHostInfo(hostInfo);
-                instanceInfo.setExpireTime(System.currentTimeMillis() + (transportProperties.getHeartbeatTimeRate()
-                    * transportProperties.getHeartbeatTimeOutCount() * 1000L));
+                instanceInfo.setExpireTime(System.currentTimeMillis() + this.heartExpireTimes);
 
                 infoInstanceInfoMap.put(hostInfo, instanceInfo);
             }
@@ -226,7 +245,7 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
     private void registerSelfToOtherNodes() {
 
         String peerNodeHosts = this.centerProperties.getPeerNodeHosts();
-        if(StringUtils.hasText(peerNodeHosts)) {
+        if (StringUtils.hasText(peerNodeHosts)) {
             RegistryInfo registryInfo = new RegistryInfo();
             registryInfo.setGroupName(HanguCons.GROUP_NAME);
             registryInfo.setInterfaceName(HanguCons.INTERFACE_NAME);
@@ -252,6 +271,24 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
             // 过会再次尝试向其他节点注册自己
             this.scheduledExecutorService.schedule(() -> this.doRegisterSelfToOtherNodes(registryInfo),
                 2, TimeUnit.SECONDS);
+        }
+    }
+
+    /**
+     * 过滤过期的数据
+     *
+     * @return
+     */
+    private List<RegistryInfo> filterExpireRegistryInfos(Set<RegistryInfo> registryInfoSet) {
+        return registryInfoSet.stream()
+            .filter(e -> System.currentTimeMillis() <= e.getRegisterTime())
+            .collect(Collectors.toList());
+    }
+
+    public void renew(HostInfo hostInfo) {
+        InstanceInfo instanceInfo = this.infoInstanceInfoMap.get(hostInfo);
+        if(Objects.nonNull(instanceInfo)) {
+            instanceInfo.setExpireTime(System.currentTimeMillis() + this.heartExpireTimes);
         }
     }
 }

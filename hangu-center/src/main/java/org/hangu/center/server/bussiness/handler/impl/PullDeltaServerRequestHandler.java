@@ -2,7 +2,6 @@ package org.hangu.center.server.bussiness.handler.impl;
 
 import java.util.List;
 import java.util.Objects;
-import org.hangu.center.server.bussiness.handler.RequestHandler;
 import org.hangu.center.server.manager.ServiceRegisterManager;
 import org.hangu.center.common.entity.RegistryInfo;
 import org.hangu.center.common.entity.Request;
@@ -19,7 +18,7 @@ import org.springframework.stereotype.Service;
  * @date 2023/8/14 16:24
  */
 @Service
-public class PullDeltaServerRequestHandler implements RequestHandler<Long> {
+public class PullDeltaServerRequestHandler extends AbstractRequestHandler<Long> {
 
     @Autowired
     private ServiceRegisterManager serviceRegisterManager;
@@ -30,7 +29,7 @@ public class PullDeltaServerRequestHandler implements RequestHandler<Long> {
     }
 
     @Override
-    public Response handler(Request<Long> request) {
+    public Response doHandler(Request<Long> request) {
         // 拉取服务列表
         Long afterRegisterTime = request.getBody();
         afterRegisterTime = Objects.isNull(afterRegisterTime) ? 0L : afterRegisterTime;

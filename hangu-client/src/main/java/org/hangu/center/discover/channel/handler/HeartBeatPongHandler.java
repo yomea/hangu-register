@@ -4,11 +4,16 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
+import io.netty.util.concurrent.DefaultPromise;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.hangu.center.discover.client.NettyClient;
-import org.hangu.center.common.entity.PingPong;
+import org.hangu.center.common.entity.RegistryInfo;
+import org.hangu.center.common.entity.Request;
+import org.hangu.center.common.entity.RpcResult;
+import org.hangu.center.common.enums.CommandTypeMarkEnum;
 import org.hangu.center.common.util.CommonUtils;
+import org.hangu.center.discover.client.NettyClient;
+import org.hangu.center.discover.manager.RpcRequestManager;
 
 /**
  * 心跳处理器
@@ -60,12 +65,14 @@ public class HeartBeatPongHandler extends ChannelInboundHandlerAdapter {
                     // 关闭重连，通过监听 channelUnregistered 发起重连
                     ctx.channel().close();
                 } else {
-                    PingPong pingPong = new PingPong();
-                    pingPong.setId(CommonUtils.snowFlakeNextId());
+                    Request<?> request = this.buildRequest();
+                    DefaultPromise<RpcResult> defaultPromise = new DefaultPromise<>(ctx.channel().eventLoop());
+                    RpcRequestManager.putFuture(request.getId(), defaultPromise);
                     // 发送心跳（从当前 context 往前）
-                    ctx.writeAndFlush(pingPong).addListener(future -> {
+                    ctx.writeAndFlush(request).addListener(future -> {
                         if (!future.isSuccess()) {
                             log.error("发送心跳失败！", future.cause());
+                            RpcRequestManager.remoteFuture(request.getId());
                         }
                     });
                     ++retryBeat;
@@ -76,6 +83,23 @@ public class HeartBeatPongHandler extends ChannelInboundHandlerAdapter {
         } else {
             super.userEventTriggered(ctx, evt);
         }
+    }
+
+    private Request<?> buildRequest() {
+
+        Request<Object> request = new Request<>();
+        request.setId(CommonUtils.snowFlakeNextId());
+        if(this.nettyClient.isCenter()) {
+            request.setCommandType(CommandTypeMarkEnum.RENEW_AND_DELTA_PULL_SERVICE.getType());
+            RegistryInfo registryInfo = new RegistryInfo();
+            registryInfo.setRegisterTime(System.currentTimeMillis());
+            registryInfo.setHostInfo(this.nettyClient.getHostInfo());
+            request.setBody(registryInfo);
+        } else {
+            request.setCommandType(CommandTypeMarkEnum.RENEW_SERVICE.getType());
+            request.setBody(this.nettyClient.getHostInfo());
+        }
+        return request;
     }
 
     private void reconnect(ChannelHandlerContext ctx) {

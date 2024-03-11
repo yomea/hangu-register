@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.constant.HanguCons;
-import org.hangu.center.common.entity.PingPong;
 import org.hangu.center.common.entity.Request;
 import org.hangu.center.common.entity.Response;
 import org.hangu.center.common.entity.RpcResult;
@@ -75,12 +74,7 @@ public class RequestMessageCodec extends MessageToMessageCodec<ByteBuf, Request>
         // 请求id
         Long id = byteBuf.readLong();
         try {
-            if ((MsgTypeMarkEnum.HEART_FLAG.getMark() & msgType) != 0) {
-
-                PingPong pingPong = this.dealHeart(id);
-                list.add(pingPong);
-                // 响应
-            } else if (requstFlag == 0) {
+            if (requstFlag == 0) {
                 byte commandType = (byte) (HanguCons.COMMAND_MARK & msgType);
                 Response response = this.dealResponse(id, byteBuf, commandType);
                 list.add(response);
@@ -127,11 +121,5 @@ public class RequestMessageCodec extends MessageToMessageCodec<ByteBuf, Request>
         response.setRpcResult(result);
 
         return response;
-    }
-
-    private PingPong dealHeart(Long id) {
-        PingPong pingPong = new PingPong();
-        pingPong.setId(id);
-        return pingPong;
     }
 }

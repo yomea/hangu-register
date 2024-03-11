@@ -14,8 +14,8 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.channel.handler.ByteFrameDecoder;
-import org.hangu.center.common.channel.handler.HeartBeatEncoder;
 import org.hangu.center.common.entity.HostInfo;
+import org.hangu.center.common.enums.ServerStatusEnum;
 import org.hangu.center.common.properties.TransportProperties;
 import org.hangu.center.discover.channel.handler.HeartBeatPongHandler;
 import org.hangu.center.discover.channel.handler.RequestMessageCodec;
@@ -44,6 +44,8 @@ public class NettyClient {
      * 标记是否为配置中心节点，如果是配置中心节点在重连时需要做些特殊操作
      */
     private boolean center;
+
+    private ServerStatusEnum status = ServerStatusEnum.UN_KNOW;
 
     public NettyClient(CenterConnectManager connectManager, TransportProperties transport, HostInfo hostInfo) {
         this.connectManager = connectManager;
@@ -78,13 +80,12 @@ public class NettyClient {
                         ch.pipeline()
                             .addLast(new ByteFrameDecoder())
                             .addLast(new RequestMessageCodec()) // 请求与响应编解码器
-                            .addLast(new HeartBeatEncoder()) // 心跳编码器
                             .addLast("logging", loggingHandler)
                             // 每隔 2s 发送一次心跳，超过三次没有收到响应，也就是三倍的心跳时间，重连
                             .addLast(new IdleStateHandler(transport.getHeartbeatTimeRate(), 0, 0, TimeUnit.SECONDS))
                             .addLast(new HeartBeatPongHandler(NettyClient.this,
                                 transport.getHeartbeatTimeOutCount())) // 心跳编码器
-                            .addLast(new ResponseMessageHandler());
+                            .addLast(new ResponseMessageHandler(NettyClient.this));
                     }
                 });
         } catch (Exception e) {
@@ -127,5 +128,29 @@ public class NettyClient {
 
     public boolean isActive() {
         return Objects.nonNull(this.channel) && this.channel.isActive();
+    }
+
+    public boolean isComplete() {
+        return ServerStatusEnum.COMPLETE == status;
+    }
+
+    public boolean isUnKnow() {
+        return ServerStatusEnum.UN_KNOW == status;
+    }
+
+    public boolean isCenter() {
+        return this.center;
+    }
+
+    public HostInfo getHostInfo() {
+        return this.hostInfo;
+    }
+
+    public ServerStatusEnum getStatus() {
+        return status;
+    }
+
+    public void setStatus(ServerStatusEnum status) {
+        this.status = status;
     }
 }

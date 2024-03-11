@@ -14,6 +14,9 @@ public class Response implements Serializable {
 
     private Long id;
 
+    /**
+     * @see  org.hangu.center.common.enums.CommandTypeMarkEnum
+     */
     private byte commandType;
 
     private RpcResult rpcResult;
