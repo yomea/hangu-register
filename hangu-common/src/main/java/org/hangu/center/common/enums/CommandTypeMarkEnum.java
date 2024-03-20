@@ -22,6 +22,7 @@ public enum CommandTypeMarkEnum {
     RENEW_SERVICE((byte) 5, "续约"),
 
     RENEW_AND_DELTA_PULL_SERVICE((byte) 6, "续约并增量拉取服务"),
+    BATCH_SYNC_REGISTER_SERVICE((byte) 7, "批量同步注册服务"),
     ;
 
     private byte type;

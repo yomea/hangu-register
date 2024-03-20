@@ -206,12 +206,26 @@ public class DiscoverClient implements Client, InitializingBean, DisposableBean 
 
     @Override
     public void register(RegistryInfo registryInfo) {
+        this.doRegister(registryInfo, CommandTypeMarkEnum.BATCH_REGISTER_SERVICE);
+    }
+
+    @Override
+    public void unRegister(RegistryInfo serverInfo) {
+        // TODO:
+    }
+
+    @Override
+    public void syncRegistry(RegistryInfo registryInfo) {
+        this.doRegister(registryInfo, CommandTypeMarkEnum.BATCH_SYNC_REGISTER_SERVICE);
+    }
+
+    private void doRegister(RegistryInfo registryInfo, CommandTypeMarkEnum markEnum) {
         NettyClient nettyClient = this.getCenterConnect(Collections.emptyList());
         Channel channel = nettyClient.getChannel();
 
         Request<List<RegistryInfo>> request = new Request<>();
         request.setId(CommonUtils.snowFlakeNextId());
-        request.setCommandType(CommandTypeMarkEnum.BATCH_REGISTER_SERVICE.getType());
+        request.setCommandType(markEnum.getType());
         request.setBody(Collections.singletonList(registryInfo));
 
         DefaultPromise<RpcResult> defaultPromise = new DefaultPromise<>(channel.eventLoop());
@@ -222,11 +236,6 @@ public class DiscoverClient implements Client, InitializingBean, DisposableBean 
         this.dealResult(nettyClient, defaultPromise, clientProperties.getTransport().getRegistryServiceTimeout(),
             CommandTypeMarkEnum.BATCH_REGISTER_SERVICE.getDesc());
         nettyClient.addRegistryInfo(registryInfo);
-    }
-
-    @Override
-    public void unRegister(RegistryInfo serverInfo) {
-        // TODO:
     }
 
 

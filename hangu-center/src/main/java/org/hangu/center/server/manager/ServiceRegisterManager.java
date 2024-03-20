@@ -203,6 +203,14 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
     }
 
     public void register(RegistryInfo registryInfo) {
+        this.doRegister(registryInfo, true);
+    }
+
+    public void syncRegistry(RegistryInfo registryInfo) {
+        this.doRegister(registryInfo, false);
+    }
+
+    private void doRegister(RegistryInfo registryInfo, boolean sync) {
         String key = CommonUtils.createServiceKey(registryInfo);
         synchronized (LOCK) {
             Map<HostInfo, RegistryInfo> hostInfoRegistryInfoMap = serviceKeyMapHostInfos.get(key);
@@ -215,10 +223,13 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
             hostInfoRegistryInfoMap.put(registryInfo.getHostInfo(), registryInfo);
             this.discoverClient.updateMaxRegistryTime(registryInfo.getRegisterTime());
         }
-        // 想其他同步注册信息
-        this.workExecutorService.submit(() -> {
-
-        });
+        // 向其他同步注册信息
+        if(sync) {
+            this.workExecutorService.submit(() -> {
+                // todo：对应通道注册失败，需要重试，如果是链接失效了，等待链接激活之后再次尝试推送
+                this.discoverClient.syncRegistry(registryInfo);
+            });
+        }
     }
 
     public void unRegister(RegistryInfo registryInfo) {

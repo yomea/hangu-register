@@ -20,4 +20,6 @@ public interface RegistryService {
      * @param serverInfo
      */
     void unRegister(RegistryInfo serverInfo);
+
+    void syncRegistry(RegistryInfo registryInfo);
 }
