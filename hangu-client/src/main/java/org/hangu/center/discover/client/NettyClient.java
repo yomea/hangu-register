@@ -23,6 +23,7 @@ import org.hangu.center.common.properties.TransportProperties;
 import org.hangu.center.discover.channel.handler.HeartBeatPongHandler;
 import org.hangu.center.discover.channel.handler.RequestMessageCodec;
 import org.hangu.center.discover.channel.handler.ResponseMessageHandler;
+import org.hangu.center.discover.entity.ClientOtherInfo;
 import org.hangu.center.discover.manager.CenterConnectManager;
 import org.hangu.center.discover.manager.NettyClientEventLoopManager;
 
@@ -43,10 +44,7 @@ public class NettyClient {
 
     private Channel channel;
 
-    /**
-     * 标记是否为配置中心节点，如果是配置中心节点在重连时需要做些特殊操作
-     */
-    private boolean center;
+    private ClientOtherInfo clientOtherInfo;
 
     private ServerStatusEnum status = ServerStatusEnum.UN_KNOW;
 
@@ -56,15 +54,15 @@ public class NettyClient {
         this.connectManager = connectManager;
         this.transport = transport;
         this.hostInfo = hostInfo;
-        this.center = false;
+        this.clientOtherInfo = new ClientOtherInfo(false, 0L);
     }
 
     public NettyClient(CenterConnectManager connectManager, TransportProperties transport, HostInfo hostInfo,
-        boolean center) {
+        ClientOtherInfo clientOtherInfo) {
         this.connectManager = connectManager;
         this.transport = transport;
         this.hostInfo = hostInfo;
-        this.center = center;
+        this.clientOtherInfo = clientOtherInfo;
     }
 
     public void open() {
@@ -144,7 +142,7 @@ public class NettyClient {
     }
 
     public boolean isCenter() {
-        return this.center;
+        return Objects.nonNull(this.clientOtherInfo) && this.clientOtherInfo.isCenter();
     }
 
     public HostInfo getHostInfo() {
@@ -165,5 +163,8 @@ public class NettyClient {
 
     public void addRegistryInfo(RegistryInfo registryInfo) {
         this.registryInfoList.add(registryInfo);
+    }
+    public ClientOtherInfo getClientProperties() {
+        return clientOtherInfo;
     }
 }

@@ -21,7 +21,4 @@ public final class HanguCons {
     public static final String GROUP_NAME = "HAN_GU_CENTER_GROUP_NAME";
     public static final String INTERFACE_NAME = "HAN_GU_CENTER_INTERFACE_NAME";
     public static final String VERSION = "1.1.1";
-
-    // 用于标识是否是注册中心服务应用
-    public static final String CENTER_NODE_MARK = "hangu.center.is-node-application";
 }

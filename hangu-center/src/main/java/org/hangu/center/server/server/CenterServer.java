@@ -1,13 +1,20 @@
 package org.hangu.center.server.server;
 
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.hangu.center.common.constant.HanguCons;
-import org.hangu.center.common.properties.ThreadProperties;
 import org.hangu.center.common.enums.ServerStatusEnum;
+import org.hangu.center.common.properties.ThreadProperties;
+import org.hangu.center.discover.bussiness.handler.ResponseHandler;
+import org.hangu.center.discover.bussiness.handler.ResponseHandlerFactory;
+import org.hangu.center.discover.properties.ClientProperties;
+import org.hangu.center.server.client.CloudDiscoverClient;
+import org.hangu.center.server.manager.ServiceRegisterManager;
 import org.hangu.center.server.properties.CenterProperties;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
@@ -23,8 +30,9 @@ public class CenterServer implements InitializingBean, DisposableBean {
 
     private ExecutorService executor;
 
-    public CenterServer(CenterProperties centerProperties) {
+    public CenterServer(CenterProperties centerProperties, ExecutorService executor) {
         this.centerProperties = centerProperties;
+        this.executor = executor;
     }
 
     @Override
@@ -40,14 +48,6 @@ public class CenterServer implements InitializingBean, DisposableBean {
     }
 
     private void initServer() {
-        int coreNum = HanguCons.CPUS << 3;
-        int maxNum = coreNum;
-        ThreadProperties thread = centerProperties.getThread();
-        if (Objects.nonNull(thread)) {
-            coreNum = thread.getCoreNum() > 0 ? thread.getCoreNum() : coreNum;
-            maxNum = thread.getMaxNum() > 0 ? thread.getMaxNum() : maxNum;
-        }
-        this.executor = new ThreadPoolExecutor(coreNum, maxNum, 10, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1000));
         this.nettyServer = new NettyServer();
         nettyServer.start(this.centerProperties, executor);
     }
@@ -59,5 +59,4 @@ public class CenterServer implements InitializingBean, DisposableBean {
     public void setStatus(ServerStatusEnum status) {
         this.nettyServer.setStatus(status);
     }
-
 }

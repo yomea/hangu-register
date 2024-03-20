@@ -11,6 +11,7 @@
     <module>hangu-center</module>
     <module>hangu-common</module>
     <module>hangu-client</module>
+    <module>hangu-register-spring-boot-starter</module>
   </modules>
   <packaging>pom</packaging>
 

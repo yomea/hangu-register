@@ -5,15 +5,16 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.util.concurrent.DefaultPromise;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.hangu.center.common.entity.RegistryInfo;
 import org.hangu.center.common.entity.RegistryInfoDirectory;
 import org.hangu.center.common.entity.Request;
 import org.hangu.center.common.entity.RpcResult;
 import org.hangu.center.common.enums.CommandTypeMarkEnum;
 import org.hangu.center.common.util.CommonUtils;
 import org.hangu.center.discover.client.NettyClient;
+import org.hangu.center.discover.entity.ClientOtherInfo;
 import org.hangu.center.discover.manager.RpcRequestManager;
 
 /**
@@ -90,11 +91,12 @@ public class HeartBeatPongHandler extends ChannelInboundHandlerAdapter {
 
         Request<Object> request = new Request<>();
         request.setId(CommonUtils.snowFlakeNextId());
-        if(this.nettyClient.isCenter()) {
+        if (this.nettyClient.isCenter()) {
             request.setCommandType(CommandTypeMarkEnum.RENEW_AND_DELTA_PULL_SERVICE.getType());
             RegistryInfoDirectory directory = new RegistryInfoDirectory();
-            // todo：后续记录最大注册时间
-            directory.setRegisterTime(0L);
+            ClientOtherInfo clientOtherInfo = this.nettyClient.getClientProperties();
+            Long maxRegistryTime = Objects.isNull(clientOtherInfo) ? 0L : clientOtherInfo.getMaxRegistryTime();
+            directory.setRegisterTime(maxRegistryTime);
             directory.setRegistryInfoList(this.nettyClient.getRegistryInfoList());
             request.setBody(directory);
         } else {

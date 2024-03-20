@@ -37,3 +37,4 @@ build/
 ### Mac OS ###
 .DS_Store
 .idea/
+log.home_IS_UNDEFINED

@@ -1,6 +1,5 @@
 hangu:
   center:
-    is-node-application: true
     port: 9991
 #    peer-node-hosts: localhost:9991,localhost:9992
     peer-node-hosts: localhost:9992

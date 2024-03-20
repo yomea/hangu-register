@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -22,8 +23,8 @@ import org.hangu.center.common.enums.ServerStatusEnum;
 import org.hangu.center.common.exception.NoServerAvailableException;
 import org.hangu.center.common.properties.TransportProperties;
 import org.hangu.center.common.util.CommonUtils;
-import org.hangu.center.discover.client.DiscoverClient;
 import org.hangu.center.discover.lookup.LookupService;
+import org.hangu.center.server.client.CloudDiscoverClient;
 import org.hangu.center.server.properties.CenterProperties;
 import org.hangu.center.server.server.CenterServer;
 import org.springframework.beans.factory.InitializingBean;
@@ -55,7 +56,7 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
 
     private CenterServer centerServer;
 
-    private DiscoverClient discoverClient;
+    private CloudDiscoverClient discoverClient;
 
     private TransportProperties transportProperties;
 
@@ -67,7 +68,9 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
 
     private long heartExpireTimes;
 
-    public ServiceRegisterManager(CenterServer centerServer, DiscoverClient discoverClient,
+    private ExecutorService workExecutorService;
+
+    public ServiceRegisterManager(ExecutorService workExecutorService, CenterServer centerServer, CloudDiscoverClient discoverClient,
         CenterProperties centerProperties) {
         this.centerServer = centerServer;
         this.discoverClient = discoverClient;
@@ -79,6 +82,7 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
         }
         this.heartExpireTimes = transportProperties.getHeartbeatTimeRate()
             * transportProperties.getHeartbeatTimeOutCount() * 1000L;
+        this.workExecutorService = workExecutorService;
     }
 
     @Override
@@ -209,7 +213,12 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
             registryInfo.setRegisterTime(System.currentTimeMillis());
             registryInfo.setExpireTime(System.currentTimeMillis() + this.heartExpireTimes);
             hostInfoRegistryInfoMap.put(registryInfo.getHostInfo(), registryInfo);
+            this.discoverClient.updateMaxRegistryTime(registryInfo.getRegisterTime());
         }
+        // 想其他同步注册信息
+        this.workExecutorService.submit(() -> {
+
+        });
     }
 
     public void unRegister(RegistryInfo registryInfo) {

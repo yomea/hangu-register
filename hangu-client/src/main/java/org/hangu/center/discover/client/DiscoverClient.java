@@ -14,7 +14,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.hangu.center.common.constant.HanguCons;
 import org.hangu.center.common.entity.HostInfo;
 import org.hangu.center.common.entity.LookupServer;
 import org.hangu.center.common.entity.RegistryInfo;
@@ -31,16 +30,13 @@ import org.hangu.center.common.exception.RpcStarterException;
 import org.hangu.center.common.exception.ServerNodeUnCompleteException;
 import org.hangu.center.common.properties.TransportProperties;
 import org.hangu.center.common.util.CommonUtils;
-import org.hangu.center.discover.lookup.LookupService;
-import org.hangu.center.discover.lookup.RegistryService;
+import org.hangu.center.discover.entity.ClientOtherInfo;
 import org.hangu.center.discover.manager.CenterConnectManager;
 import org.hangu.center.discover.manager.NettyClientEventLoopManager;
 import org.hangu.center.discover.manager.RpcRequestManager;
 import org.hangu.center.discover.properties.ClientProperties;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.context.EnvironmentAware;
-import org.springframework.core.env.Environment;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
@@ -49,22 +45,15 @@ import org.springframework.util.StringUtils;
  * @date 2023/8/11 17:42
  */
 @Slf4j
-public class DiscoverClient implements LookupService, RegistryService, InitializingBean, DisposableBean,
-    EnvironmentAware {
+public class DiscoverClient implements Client, InitializingBean, DisposableBean {
 
     private ClientProperties clientProperties;
 
     private CenterConnectManager connectManager;
 
-    private Environment environment;
-
-    // 标记是否为配置中心节点的客户端
-    private boolean center;
-
     public DiscoverClient(ClientProperties clientProperties) {
         this.clientProperties = clientProperties;
         this.connectManager = new CenterConnectManager();
-        this.center = false;
     }
 
     @Override
@@ -75,8 +64,6 @@ public class DiscoverClient implements LookupService, RegistryService, Initializ
     @Override
     public void afterPropertiesSet() throws Exception {
 
-        this.center = this.environment.getProperty(HanguCons.CENTER_NODE_MARK, boolean.class, false);
-
         List<HostInfo> hostInfos = this.parseHostInfoAndCheck(clientProperties.getPeerNodeHosts());
         this.parseOtherProperties(clientProperties);
 
@@ -84,7 +71,7 @@ public class DiscoverClient implements LookupService, RegistryService, Initializ
             try {
                 // 启动netty客户端
                 NettyClient nettyClient = new NettyClient(this.connectManager, clientProperties.getTransport(),
-                    hostInfo, this.center);
+                    hostInfo, this.getClientOtherInfo());
                 this.connectManager.cacheChannel(nettyClient);
                 nettyClient.open();
                 nettyClient.syncConnect();
@@ -296,7 +283,7 @@ public class DiscoverClient implements LookupService, RegistryService, Initializ
     }
 
     @Override
-    public void setEnvironment(Environment environment) {
-        this.environment = environment;
+    public ClientOtherInfo getClientOtherInfo() {
+        return null;
     }
 }
