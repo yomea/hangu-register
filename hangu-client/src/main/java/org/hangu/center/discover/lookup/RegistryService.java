@@ -21,7 +21,7 @@ public interface RegistryService {
      * 取消注册
      * @param serverInfo
      */
-    void unRegister(RegistryInfo serverInfo);
+    void unRegister(RegistryInfo registryInfo);
 
     void syncRegistry(RegistryInfo registryInfo);
 }

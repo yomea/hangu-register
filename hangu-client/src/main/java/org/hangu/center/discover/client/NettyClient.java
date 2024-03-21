@@ -18,6 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.channel.handler.ByteFrameDecoder;
 import org.hangu.center.common.entity.HostInfo;
 import org.hangu.center.common.entity.RegistryInfo;
+import org.hangu.center.common.entity.Request;
+import org.hangu.center.common.entity.Response;
 import org.hangu.center.common.enums.ServerStatusEnum;
 import org.hangu.center.common.properties.TransportProperties;
 import org.hangu.center.discover.channel.handler.HeartBeatPongHandler;
@@ -166,5 +168,9 @@ public class NettyClient {
     }
     public ClientOtherInfo getClientProperties() {
         return clientOtherInfo;
+    }
+
+    public void send(Request<?> request) {
+        this.channel.writeAndFlush(request);
     }
 }

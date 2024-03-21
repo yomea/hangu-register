@@ -9,6 +9,7 @@ import org.hangu.center.common.entity.RpcResult;
 import org.hangu.center.common.enums.CommandTypeMarkEnum;
 import org.hangu.center.common.enums.ErrorCodeEnum;
 import org.hangu.center.server.manager.ServiceRegisterManager;
+import org.hangu.center.server.server.NettyServer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -29,7 +30,7 @@ public class PullDeltaServerRequestHandler extends AbstractRequestHandler<Long> 
     }
 
     @Override
-    public Response doHandler(Request<Long> request) {
+    public Response doHandler(Request<Long> request, NettyServer nettyServer) {
         // 拉取服务列表
         Long afterRegisterTime = request.getBody();
         afterRegisterTime = Objects.isNull(afterRegisterTime) ? 0L : afterRegisterTime;

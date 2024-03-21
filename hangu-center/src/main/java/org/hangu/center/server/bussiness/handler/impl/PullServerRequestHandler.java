@@ -10,6 +10,7 @@ import org.hangu.center.common.entity.RpcResult;
 import org.hangu.center.common.enums.CommandTypeMarkEnum;
 import org.hangu.center.common.enums.ErrorCodeEnum;
 import org.hangu.center.server.manager.ServiceRegisterManager;
+import org.hangu.center.server.server.NettyServer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -30,7 +31,7 @@ public class PullServerRequestHandler extends AbstractRequestHandler<LookupServe
     }
 
     @Override
-    public Response doHandler(Request<LookupServer> request) {
+    public Response doHandler(Request<LookupServer> request, NettyServer nettyServer) {
         // 拉取服务列表
         LookupServer lookupServer = request.getBody();
         List<RegistryInfo> infos;

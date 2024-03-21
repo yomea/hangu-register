@@ -31,14 +31,16 @@ public class ResponseMessageHandler extends SimpleChannelInboundHandler<Response
     protected void channelRead0(ChannelHandlerContext ctx, Response response) throws Exception {
 
         Long id = response.getId();
-        DefaultPromise<RpcResult> future = RpcRequestManager.getFuture(id);
-        if (Objects.isNull(future) || future.isCancelled()) {
-            log.warn("无效的响应请求！id = {}", id);
-            return;
+        if(Objects.nonNull(id) && id > 0L) {
+            DefaultPromise<RpcResult> future = RpcRequestManager.remoteFuture(id);
+            if (Objects.isNull(future) || future.isCancelled()) {
+                log.warn("无效的响应请求！id = {}", id);
+                return;
+            } else {
+                RpcResult rpcResult = response.getRpcResult();
+                future.trySuccess(rpcResult);
+            }
         }
-
-        RpcResult rpcResult = response.getRpcResult();
-        future.trySuccess(rpcResult);
         byte commandType = response.getCommandType();
         ResponseHandler responseHandler = ResponseHandlerFactory.getResponseHandlerByType(commandType);
         // 有自定义处理的，走这里

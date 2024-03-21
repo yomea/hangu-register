@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.channel.handler.ByteFrameDecoder;
 import org.hangu.center.common.constant.HanguCons;
+import org.hangu.center.common.entity.Response;
 import org.hangu.center.common.enums.ErrorCodeEnum;
 import org.hangu.center.common.enums.ServerStatusEnum;
 import org.hangu.center.common.exception.RpcStarterException;
@@ -110,5 +111,13 @@ public class NettyServer {
 
     public void setStatus(ServerStatusEnum status) {
         this.status = status;
+    }
+
+    public void send(Response response) {
+        this.channel.writeAndFlush(response);
+    }
+
+    public Channel getChannel() {
+        return channel;
     }
 }

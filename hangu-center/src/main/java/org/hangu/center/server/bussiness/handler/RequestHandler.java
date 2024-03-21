@@ -4,6 +4,7 @@ import org.hangu.center.common.entity.Request;
 import org.hangu.center.common.entity.Response;
 import org.hangu.center.common.enums.CommandTypeMarkEnum;
 import org.hangu.center.common.enums.ServerStatusEnum;
+import org.hangu.center.server.server.NettyServer;
 
 /**
  * @author wuzhenhong
@@ -13,5 +14,5 @@ public interface RequestHandler<T> {
 
     CommandTypeMarkEnum support();
 
-    Response handler(Request<T> request, ServerStatusEnum status);
+    Response handler(Request<T> request, NettyServer nettyServer, ServerStatusEnum status);
 }

@@ -10,6 +10,7 @@ import org.hangu.center.common.entity.RpcResult;
 import org.hangu.center.common.enums.CommandTypeMarkEnum;
 import org.hangu.center.common.enums.ErrorCodeEnum;
 import org.hangu.center.server.manager.ServiceRegisterManager;
+import org.hangu.center.server.server.NettyServer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -29,7 +30,7 @@ public class RemoveServerRequestHandler extends AbstractRequestHandler<List<Regi
     }
 
     @Override
-    public Response doHandler(Request<List<RegistryInfo>> request) {
+    public Response doHandler(Request<List<RegistryInfo>> request, NettyServer nettyServer) {
 
         List<RegistryInfo> registryInfos = Optional.ofNullable(request.getBody()).orElse(Collections.emptyList());
         registryInfos.stream().forEach(serviceRegisterManager::unRegister);

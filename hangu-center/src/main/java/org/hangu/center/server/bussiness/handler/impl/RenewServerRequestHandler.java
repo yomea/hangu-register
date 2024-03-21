@@ -9,6 +9,7 @@ import org.hangu.center.common.enums.ErrorCodeEnum;
 import org.hangu.center.common.enums.ServerStatusEnum;
 import org.hangu.center.server.bussiness.handler.RequestHandler;
 import org.hangu.center.server.manager.ServiceRegisterManager;
+import org.hangu.center.server.server.NettyServer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -29,7 +30,7 @@ public class RenewServerRequestHandler implements RequestHandler<RegistryInfoDir
     }
 
     @Override
-    public Response handler(Request<RegistryInfoDirectory> request, ServerStatusEnum status) {
+    public Response handler(Request<RegistryInfoDirectory> request, NettyServer nettyServer, ServerStatusEnum status) {
 
         RegistryInfoDirectory directory = request.getBody();
         serviceRegisterManager.renew(directory.getRegistryInfoList());

@@ -13,21 +13,30 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.constant.HanguCons;
 import org.hangu.center.common.entity.HostInfo;
 import org.hangu.center.common.entity.LookupServer;
 import org.hangu.center.common.entity.RegistryInfo;
+import org.hangu.center.common.entity.Response;
+import org.hangu.center.common.entity.RpcResult;
+import org.hangu.center.common.entity.ServerInfo;
+import org.hangu.center.common.enums.CommandTypeMarkEnum;
+import org.hangu.center.common.enums.ErrorCodeEnum;
 import org.hangu.center.common.enums.ServerStatusEnum;
 import org.hangu.center.common.exception.NoServerAvailableException;
 import org.hangu.center.common.properties.TransportProperties;
 import org.hangu.center.common.util.CommonUtils;
+import org.hangu.center.discover.client.NettyClient;
 import org.hangu.center.discover.lookup.LookupService;
 import org.hangu.center.server.client.CloudDiscoverClient;
 import org.hangu.center.server.properties.CenterProperties;
 import org.hangu.center.server.server.CenterServer;
+import org.hangu.center.server.server.NettyServer;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -44,6 +53,12 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
     private static final int TIME_DELAY = 2 * 60 * 1000;
 
     private Object LOCK = new Object();
+
+    // 订阅列表
+    private final Map<String, List<NettyServer>> subscribeTable = new ConcurrentHashMap<>(
+        DEFAULT_SIZE);
+    private final Map<String, Object> subscribeLock = new ConcurrentHashMap<>(
+        DEFAULT_SIZE);
 
     /**
      * 接口与所在机器的host映射
@@ -187,6 +202,7 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
     }
 
     private void doClearExpireData() {
+        Map<String, RegistryInfo> removeRegistryInfoMap = new HashMap<>();
         synchronized (LOCK) {
             serviceKeyMapHostInfos.entrySet().stream().forEach(entry -> {
                 Map<HostInfo, RegistryInfo> registryInfoMap = entry.getValue();
@@ -194,11 +210,36 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
                 registryInfoMap.forEach((hostInfo, registryInfo) -> {
                     if (System.currentTimeMillis() > registryInfo.getExpireTime()) {
                         removeHostInfos.add(hostInfo);
+                        removeRegistryInfoMap.put(CommonUtils.createServiceKey(registryInfo)
+                            , registryInfo);
                     }
                 });
 
                 removeHostInfos.stream().forEach(registryInfoMap::remove);
             });
+        }
+        this.subscribeNotify(removeRegistryInfoMap.values().stream().collect(Collectors.toList()));
+    }
+
+    private void specifyClearExpireData(List<? extends ServerInfo> serverInfoList) {
+        serverInfoList.stream().forEach(this::doSpecifyClearExpireData);
+        this.subscribeNotify(serverInfoList);
+    }
+
+    private void doSpecifyClearExpireData(ServerInfo serverInfo) {
+        String key = CommonUtils.createServiceKey(serverInfo);
+        Map<HostInfo, RegistryInfo> registryInfoMap = serviceKeyMapHostInfos.get(key);
+        if (CollectionUtils.isEmpty(registryInfoMap)) {
+            return;
+        }
+        synchronized (LOCK) {
+            List<HostInfo> removeHostInfos = new ArrayList<>();
+            registryInfoMap.forEach((hostInfo, registryInfo) -> {
+                if (System.currentTimeMillis() > registryInfo.getExpireTime()) {
+                    removeHostInfos.add(hostInfo);
+                }
+            });
+            removeHostInfos.stream().forEach(registryInfoMap::remove);
         }
     }
 
@@ -236,11 +277,17 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
                 this.discoverClient.syncRegistry(registryInfo);
             });
         }
+
+        this.subscribeNotify(Collections.singletonList(registryInfo));
     }
 
     public void unRegister(RegistryInfo registryInfo) {
         String key = CommonUtils.createServiceKey(registryInfo);
-        serviceKeyMapHostInfos.remove(key);
+        Map<HostInfo, RegistryInfo> map = serviceKeyMapHostInfos.get(key);
+        if(!CollectionUtils.isEmpty(map)) {
+            map.remove(registryInfo.getHostInfo());
+            this.subscribeNotify(Collections.singletonList(registryInfo));
+        }
     }
 
     private void registerSelfToOtherNodes() {
@@ -274,9 +321,20 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
      * @return
      */
     private List<RegistryInfo> filterExpireRegistryInfos(List<RegistryInfo> registryInfoSet) {
-        return registryInfoSet.stream()
-            .filter(e -> System.currentTimeMillis() <= e.getExpireTime())
+        Long currentTime = System.currentTimeMillis();
+        List<RegistryInfo> effectiveList = registryInfoSet.stream()
+            .filter(e -> currentTime <= e.getExpireTime())
             .collect(Collectors.toList());
+        List<RegistryInfo> expireList = registryInfoSet.stream()
+            .filter(e -> currentTime > e.getExpireTime())
+            .collect(Collectors.toList());
+        if(!CollectionUtils.isEmpty(expireList)) {
+            workExecutorService.submit(() -> {
+                // 处理过期数据
+                this.specifyClearExpireData(expireList);
+            });
+        }
+        return effectiveList;
     }
 
     public void renew(List<RegistryInfo> registryInfoList) {
@@ -290,5 +348,82 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
                 this.register(registryInfo);
             }
         });
+    }
+
+    private void subscribeNotify(List<? extends ServerInfo> serverInfoList) {
+        this.subscribeNotify(serverInfoList, null);
+    }
+
+    private void subscribeNotify(List<? extends ServerInfo> serverInfoList, List<NettyServer> nettyServers) {
+        if(CollectionUtils.isEmpty(serverInfoList)) {
+            return;
+        }
+        this.workExecutorService.submit(() -> {
+            serverInfoList.stream().forEach(e -> this.doSubscribeNotify(e, nettyServers));
+        });
+    }
+
+    private void doSubscribeNotify(ServerInfo serverInfo, List<NettyServer> nettyServers) {
+        String key = CommonUtils.createServiceKey(serverInfo);
+        List<NettyServer> nettyServerList = Objects.isNull(nettyServers)
+            ? subscribeTable.get(key)
+            : nettyServers;
+        if(CollectionUtils.isEmpty(nettyServerList)) {
+            return;
+        }
+        LookupServer lookupServer = new LookupServer();
+        lookupServer.setGroupName(serverInfo.getGroupName());
+        lookupServer.setVersion(serverInfo.getVersion());
+        lookupServer.setInterfaceName(serverInfo.getInterfaceName());
+        lookupServer.setAfterRegisterTime(0L);
+        List<RegistryInfo> registryInfoList = this.lookup(lookupServer);
+        List<HostInfo> hostInfoList = registryInfoList.stream().map(RegistryInfo::getHostInfo).distinct()
+            .collect(Collectors.toList());
+        Response response = this.buildNotifyResponse(hostInfoList);
+        nettyServerList.stream().forEach(nettyServer -> {
+            try {
+                nettyServer.send(response);
+            } catch (Exception e) {
+                log.error("通知服务变更：groupName：{}，interfaceName：{}， version：{} 到客户机器 {} 失败！",
+                    serverInfo.getGroupName(), serverInfo.getInterfaceName(), serverInfo.getVersion(), nettyServer.getChannel().remoteAddress());
+            }
+        });
+    }
+
+    private Response buildNotifyResponse(List<HostInfo> hostInfoList) {
+        Response response = new Response();
+        response.setId(0L);
+        response.setCommandType(CommandTypeMarkEnum.NOTIFY_REGISTER_SERVICE.getType());
+        RpcResult rpcResult = new RpcResult();
+        rpcResult.setCode(ErrorCodeEnum.SUCCESS.getCode());
+        rpcResult.setResult(hostInfoList);
+        rpcResult.setReturnType(List.class);
+        response.setRpcResult(rpcResult);
+        return response;
+    }
+
+    public List<RegistryInfo> subscribe(NettyServer nettyServer, ServerInfo serverInfo) {
+
+        String key = CommonUtils.createServiceKey(serverInfo);
+        while (Objects.nonNull(this.subscribeLock.putIfAbsent(key, LOCK))) {
+            Thread.yield();
+        }
+        try {
+            List<NettyServer> nettyServers = this.subscribeTable.get(key);
+            if(Objects.isNull(nettyServers)) {
+                nettyServers = new ArrayList<>();
+                this.subscribeTable.put(key, nettyServers);
+            }
+            nettyServers.add(nettyServer);
+        } finally {
+            this.subscribeLock.remove(key);
+        }
+
+        LookupServer lookupServer = new LookupServer();
+        lookupServer.setGroupName(serverInfo.getGroupName());
+        lookupServer.setVersion(serverInfo.getVersion());
+        lookupServer.setInterfaceName(serverInfo.getInterfaceName());
+        lookupServer.setAfterRegisterTime(0L);
+        return this.lookup(lookupServer);
     }
 }

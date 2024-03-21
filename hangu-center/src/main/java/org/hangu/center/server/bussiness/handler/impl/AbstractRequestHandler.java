@@ -7,6 +7,7 @@ import org.hangu.center.common.enums.ErrorCodeEnum;
 import org.hangu.center.common.enums.ServerStatusEnum;
 import org.hangu.center.common.exception.ServerNodeUnCompleteException;
 import org.hangu.center.server.bussiness.handler.RequestHandler;
+import org.hangu.center.server.server.NettyServer;
 
 /**
  * @author wuzhenhong
@@ -15,7 +16,7 @@ import org.hangu.center.server.bussiness.handler.RequestHandler;
 public abstract class AbstractRequestHandler<T> implements RequestHandler<T> {
 
     @Override
-    public Response handler(Request<T> request, ServerStatusEnum status) {
+    public Response handler(Request<T> request, NettyServer nettyServer, ServerStatusEnum status) {
 
         Response response;
         if (ServerStatusEnum.STOP == status) {
@@ -23,14 +24,14 @@ public abstract class AbstractRequestHandler<T> implements RequestHandler<T> {
         } else if (ServerStatusEnum.READY == status) {
             response = this.buildErrorResponse(request, status);
         } else if (ServerStatusEnum.COMPLETE == status) {
-            response = this.doHandler(request);
+            response = this.doHandler(request, nettyServer);
         } else {
             throw new UnsupportedOperationException(String.format("服务状态：%s不支持！", status.getDesc()));
         }
         return response;
     }
 
-    public abstract Response doHandler(Request<T> request);
+    public abstract Response doHandler(Request<T> request, NettyServer nettyServer);
 
     private Response buildErrorResponse(Request<T> request, ServerStatusEnum statusEnum) {
 
