@@ -38,8 +38,8 @@ public class SubscribeNotifyResponseHandler implements ResponseHandler {
             Exception exception = (Exception) rpcResult.getResult();
             log.error("订阅通知异常！", exception);
         } else {
-            List<RegistryInfo> registryInfoList = (List<RegistryInfo>) rpcResult.getResult();
-            List<RegistryInfo> infoList = Optional.ofNullable(registryInfoList).orElse(Collections.emptyList());
+            List<RegistryInfo> hostInfoList = (List<RegistryInfo>) rpcResult.getResult();
+            List<RegistryInfo> infoList = Optional.ofNullable(hostInfoList).orElse(Collections.emptyList());
             discoverClient.notify(infoList);
         }
     }

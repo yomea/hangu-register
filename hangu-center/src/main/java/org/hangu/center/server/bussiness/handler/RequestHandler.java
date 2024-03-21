@@ -1,5 +1,6 @@
 package org.hangu.center.server.bussiness.handler;
 
+import io.netty.channel.Channel;
 import org.hangu.center.common.entity.Request;
 import org.hangu.center.common.entity.Response;
 import org.hangu.center.common.enums.CommandTypeMarkEnum;
@@ -14,5 +15,5 @@ public interface RequestHandler<T> {
 
     CommandTypeMarkEnum support();
 
-    Response handler(Request<T> request, NettyServer nettyServer);
+    Response handler(Request<T> request, NettyServer nettyServer, Channel channel);
 }

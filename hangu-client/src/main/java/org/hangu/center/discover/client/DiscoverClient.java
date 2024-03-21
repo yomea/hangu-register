@@ -44,6 +44,7 @@ import org.hangu.center.discover.manager.NettyClientEventLoopManager;
 import org.hangu.center.discover.manager.RpcRequestManager;
 import org.hangu.center.discover.properties.ClientProperties;
 import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.util.CollectionUtils;
@@ -54,7 +55,7 @@ import org.springframework.util.StringUtils;
  * @date 2023/8/11 17:42
  */
 @Slf4j
-public class DiscoverClient implements Client, ApplicationListener<ContextRefreshedEvent>, DisposableBean {
+public class DiscoverClient implements Client, InitializingBean, DisposableBean {
 
     private final Object  lock = new Object();
     private ClientProperties clientProperties;
@@ -183,12 +184,12 @@ public class DiscoverClient implements Client, ApplicationListener<ContextRefres
         Map<String, List<RegistryInfo>> keyMapInfoListMap = registryInfoList.stream().collect(Collectors.groupingBy(CommonUtils::createServiceKey));
         keyMapInfoListMap.forEach((key, infos) -> {
             List<RegistryNotifyListener> listeners = this.keyMapListenerMap.getOrDefault(key, Collections.emptyList());
-            listeners.stream().forEach(RegistryNotifyListener::notify);
+            listeners.stream().forEach(e -> e.notify(registryInfoList));
         });
     }
 
     @Override
-    public void onApplicationEvent(ContextRefreshedEvent event) {
+    public void afterPropertiesSet() throws Exception {
         List<HostInfo> hostInfos = this.parseHostInfoAndCheck(clientProperties.getPeerNodeHosts());
         this.parseOtherProperties(clientProperties);
 
@@ -395,7 +396,7 @@ public class DiscoverClient implements Client, ApplicationListener<ContextRefres
 
     private void sendSubscribeRequest(ServerInfo serverInfo) {
         try {
-            this.sendCommonRequest(CommandTypeMarkEnum.NOTIFY_REGISTER_SERVICE, serverInfo);
+            this.sendCommonRequest(CommandTypeMarkEnum.NOTIFY_REGISTER_SERVICE, 0L, serverInfo);
         } catch (Exception e) {
             log.error("订阅失败！", e);
             this.scheduledExecutorService.schedule(() -> {
@@ -404,10 +405,10 @@ public class DiscoverClient implements Client, ApplicationListener<ContextRefres
         }
     }
 
-    private <T> void sendCommonRequest(CommandTypeMarkEnum markEnum, T data) {
+    private <T> void sendCommonRequest(CommandTypeMarkEnum markEnum, Long id, T data) {
         NettyClient nettyClient = this.getCenterConnect(Collections.emptyList());
         Request<T> request = new Request<>();
-        request.setId(CommonUtils.snowFlakeNextId());
+        request.setId(id);
         request.setCommandType(markEnum.getType());
         request.setBody(data);
         nettyClient.send(request);

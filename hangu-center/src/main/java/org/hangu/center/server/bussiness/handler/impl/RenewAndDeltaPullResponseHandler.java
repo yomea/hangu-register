@@ -14,19 +14,18 @@ import org.hangu.center.common.enums.ServerStatusEnum;
 import org.hangu.center.discover.bussiness.handler.ResponseHandler;
 import org.hangu.center.discover.client.NettyClient;
 import org.hangu.center.server.manager.ServiceRegisterManager;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
 /**
  * @author wuzhenhong
  * @date 2024/3/11 17:14
  */
-@Component
 @Slf4j
 public class RenewAndDeltaPullResponseHandler implements ResponseHandler {
 
-    @Autowired
     private ServiceRegisterManager serviceRegisterManager;
+    public RenewAndDeltaPullResponseHandler(ServiceRegisterManager serviceRegisterManager) {
+        this.serviceRegisterManager = serviceRegisterManager;
+    }
 
     @Override
     public CommandTypeMarkEnum support() {

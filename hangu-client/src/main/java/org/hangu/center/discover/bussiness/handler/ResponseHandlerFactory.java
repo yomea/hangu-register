@@ -14,9 +14,8 @@ public class ResponseHandlerFactory {
 
     public static final Map<Byte, ResponseHandler> TYPE_HANDLER_MAP = new HashMap<>();
 
-    public ResponseHandlerFactory(Optional<List<ResponseHandler>> optionalRequestHandlers) {
-
-        optionalRequestHandlers.orElse(Collections.emptyList())
+    public static void registryHandlers(List<ResponseHandler> requestHandlers) {
+        Optional.ofNullable(requestHandlers).orElse(Collections.emptyList())
             .stream().forEach(requestHandler -> {
                 TYPE_HANDLER_MAP.put(requestHandler.support().getType(), requestHandler);
             });

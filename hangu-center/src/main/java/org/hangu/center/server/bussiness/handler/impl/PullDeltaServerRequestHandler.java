@@ -10,19 +10,19 @@ import org.hangu.center.common.enums.CommandTypeMarkEnum;
 import org.hangu.center.common.enums.ErrorCodeEnum;
 import org.hangu.center.server.manager.ServiceRegisterManager;
 import org.hangu.center.server.server.NettyServer;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
 /**
  * 增量拉取服务
  * @author wuzhenhong
  * @date 2023/8/14 16:24
  */
-@Service
 public class PullDeltaServerRequestHandler extends AbstractRequestHandler<Long> {
 
-    @Autowired
     private ServiceRegisterManager serviceRegisterManager;
+
+    public PullDeltaServerRequestHandler(ServiceRegisterManager serviceRegisterManager) {
+        this.serviceRegisterManager = serviceRegisterManager;
+    }
 
     @Override
     public CommandTypeMarkEnum support() {

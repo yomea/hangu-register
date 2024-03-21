@@ -1,5 +1,6 @@
 package org.hangu.center.server.bussiness.handler.impl;
 
+import io.netty.channel.Channel;
 import org.hangu.center.common.entity.Request;
 import org.hangu.center.common.entity.Response;
 import org.hangu.center.common.entity.RpcResult;
@@ -16,7 +17,7 @@ import org.hangu.center.server.server.NettyServer;
 public abstract class AbstractRequestHandler<T> implements RequestHandler<T> {
 
     @Override
-    public Response handler(Request<T> request, NettyServer nettyServer) {
+    public Response handler(Request<T> request, NettyServer nettyServer, Channel channel) {
 
         Response response;
         ServerStatusEnum status = nettyServer.getStatus();

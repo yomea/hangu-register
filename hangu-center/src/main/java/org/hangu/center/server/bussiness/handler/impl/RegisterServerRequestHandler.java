@@ -11,18 +11,17 @@ import org.hangu.center.common.enums.CommandTypeMarkEnum;
 import org.hangu.center.common.enums.ErrorCodeEnum;
 import org.hangu.center.server.manager.ServiceRegisterManager;
 import org.hangu.center.server.server.NettyServer;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
 /**
  * @author wuzhenhong
  * @date 2023/8/14 16:24
  */
-@Service
 public class RegisterServerRequestHandler extends AbstractRequestHandler<List<RegistryInfo>> {
 
-    @Autowired
     private ServiceRegisterManager serviceRegisterManager;
+    public RegisterServerRequestHandler(ServiceRegisterManager serviceRegisterManager) {
+        this.serviceRegisterManager = serviceRegisterManager;
+    }
 
     @Override
     public CommandTypeMarkEnum support() {

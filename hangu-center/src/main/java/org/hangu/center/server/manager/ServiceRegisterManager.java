@@ -1,6 +1,7 @@
 package org.hangu.center.server.manager;
 
 import cn.hutool.core.net.NetUtil;
+import io.netty.channel.Channel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,7 +56,7 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
     private Object LOCK = new Object();
 
     // 订阅列表
-    private final Map<String, List<NettyServer>> subscribeTable = new ConcurrentHashMap<>(
+    private final Map<String, List<Channel>> subscribeTable = new ConcurrentHashMap<>(
         DEFAULT_SIZE);
     private final Map<String, Object> subscribeLock = new ConcurrentHashMap<>(
         DEFAULT_SIZE);
@@ -354,7 +355,7 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
         this.subscribeNotify(serverInfoList, null);
     }
 
-    private void subscribeNotify(List<? extends ServerInfo> serverInfoList, List<NettyServer> nettyServers) {
+    private void subscribeNotify(List<? extends ServerInfo> serverInfoList, List<Channel> nettyServers) {
         if(CollectionUtils.isEmpty(serverInfoList)) {
             return;
         }
@@ -363,9 +364,9 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
         });
     }
 
-    private void doSubscribeNotify(ServerInfo serverInfo, List<NettyServer> nettyServers) {
+    private void doSubscribeNotify(ServerInfo serverInfo, List<Channel> nettyServers) {
         String key = CommonUtils.createServiceKey(serverInfo);
-        List<NettyServer> nettyServerList = Objects.isNull(nettyServers)
+        List<Channel> nettyServerList = Objects.isNull(nettyServers)
             ? subscribeTable.get(key)
             : nettyServers;
         if(CollectionUtils.isEmpty(nettyServerList)) {
@@ -377,44 +378,42 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
         lookupServer.setInterfaceName(serverInfo.getInterfaceName());
         lookupServer.setAfterRegisterTime(0L);
         List<RegistryInfo> registryInfoList = this.lookup(lookupServer);
-        List<HostInfo> hostInfoList = registryInfoList.stream().map(RegistryInfo::getHostInfo).distinct()
-            .collect(Collectors.toList());
-        Response response = this.buildNotifyResponse(hostInfoList);
+        Response response = this.buildNotifyResponse(registryInfoList);
         nettyServerList.stream().forEach(nettyServer -> {
             try {
-                nettyServer.send(response);
+                nettyServer.writeAndFlush(response);
             } catch (Exception e) {
-                log.error("通知服务变更：groupName：{}，interfaceName：{}， version：{} 到客户机器 {} 失败！",
-                    serverInfo.getGroupName(), serverInfo.getInterfaceName(), serverInfo.getVersion(), nettyServer.getChannel().remoteAddress());
+                log.error("通知服务变更：groupName：{}，interfaceName：{}， version：{} 失败！",
+                    serverInfo.getGroupName(), serverInfo.getInterfaceName(), serverInfo.getVersion());
             }
         });
     }
 
-    private Response buildNotifyResponse(List<HostInfo> hostInfoList) {
+    private Response buildNotifyResponse(List<RegistryInfo> registryInfos) {
         Response response = new Response();
         response.setId(0L);
         response.setCommandType(CommandTypeMarkEnum.NOTIFY_REGISTER_SERVICE.getType());
         RpcResult rpcResult = new RpcResult();
         rpcResult.setCode(ErrorCodeEnum.SUCCESS.getCode());
-        rpcResult.setResult(hostInfoList);
+        rpcResult.setResult(registryInfos);
         rpcResult.setReturnType(List.class);
         response.setRpcResult(rpcResult);
         return response;
     }
 
-    public List<RegistryInfo> subscribe(NettyServer nettyServer, ServerInfo serverInfo) {
+    public List<RegistryInfo> subscribe(Channel channel, ServerInfo serverInfo) {
 
         String key = CommonUtils.createServiceKey(serverInfo);
         while (Objects.nonNull(this.subscribeLock.putIfAbsent(key, LOCK))) {
             Thread.yield();
         }
         try {
-            List<NettyServer> nettyServers = this.subscribeTable.get(key);
+            List<Channel> nettyServers = this.subscribeTable.get(key);
             if(Objects.isNull(nettyServers)) {
                 nettyServers = new ArrayList<>();
                 this.subscribeTable.put(key, nettyServers);
             }
-            nettyServers.add(nettyServer);
+            nettyServers.add(channel);
         } finally {
             this.subscribeLock.remove(key);
         }

@@ -2,6 +2,7 @@ package org.hangu.center.discover.bussiness.handler;
 
 import org.hangu.center.common.entity.Response;
 import org.hangu.center.common.enums.CommandTypeMarkEnum;
+import org.hangu.center.discover.client.DiscoverClient;
 import org.hangu.center.discover.client.NettyClient;
 
 /**

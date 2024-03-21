@@ -1,5 +1,6 @@
 package org.hangu.center.server.configuration;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -7,13 +8,18 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.hangu.center.common.constant.HanguCons;
 import org.hangu.center.common.properties.ThreadProperties;
 import org.hangu.center.discover.bussiness.handler.ResponseHandler;
 import org.hangu.center.discover.bussiness.handler.ResponseHandlerFactory;
 import org.hangu.center.discover.bussiness.handler.impl.RenewResponseHandler;
 import org.hangu.center.discover.properties.ClientProperties;
+import org.hangu.center.server.bussiness.handler.RequestHandler;
+import org.hangu.center.server.bussiness.handler.RequestHandlerFactory;
 import org.hangu.center.server.client.CloudDiscoverClient;
+import org.hangu.center.server.config.RequestHandlerConfig;
+import org.hangu.center.server.config.ResponseHandlerConfig;
 import org.hangu.center.server.manager.ServiceRegisterManager;
 import org.hangu.center.server.properties.CenterProperties;
 import org.hangu.center.server.server.CenterServer;
@@ -58,17 +64,23 @@ public class HanguCenterAutoConfiguration {
     }
 
     @Bean
-    public ServiceRegisterManager serviceRegisterManager(ExecutorService workExecutorService, CenterServer centerServer, CloudDiscoverClient cloudDiscoverClient) {
-        return new ServiceRegisterManager(workExecutorService, centerServer, cloudDiscoverClient, centerProperties);
+    public ServiceRegisterManager serviceRegisterManager(ExecutorService workExecutorService, CenterServer centerServer, CloudDiscoverClient cloudDiscoverClient,
+        @Autowired Optional<List<ResponseHandlerConfig>> optionalResponseHandlers,
+        @Autowired Optional<List<RequestHandlerConfig>> optionalRequestHandlers) {
+        ServiceRegisterManager serviceRegisterManager = new ServiceRegisterManager(workExecutorService, centerServer, cloudDiscoverClient, centerProperties);
+        // 先注册
+        List<ResponseHandler> responseHandlerList = optionalResponseHandlers.orElse(Collections.emptyList())
+                .stream().flatMap(config -> config.config(serviceRegisterManager, cloudDiscoverClient).stream())
+                .collect(Collectors.toList());
+
+        ResponseHandlerFactory.registryHandlers(responseHandlerList);
+
+        List<RequestHandler> requestHandlers = optionalRequestHandlers.orElse(Collections.emptyList())
+            .stream().flatMap(config -> config.config(serviceRegisterManager).stream())
+            .collect(Collectors.toList());
+        RequestHandlerFactory.registryHandlers(requestHandlers);
+        return serviceRegisterManager;
     }
 
-    @Bean
-    public RenewResponseHandler renewResponseHandler() {
-        return new RenewResponseHandler();
-    }
 
-    @Bean
-    public ResponseHandlerFactory responseHandlerFactory(@Autowired Optional<List<ResponseHandler>> optionalRequestHandlers) {
-        return new ResponseHandlerFactory(optionalRequestHandlers);
-    }
 }

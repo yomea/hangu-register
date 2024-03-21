@@ -1,5 +1,6 @@
 package org.hangu.center.server.bussiness.handler.impl;
 
+import io.netty.channel.Channel;
 import java.util.List;
 import java.util.Objects;
 import org.hangu.center.common.entity.CenterNodeInfo;
@@ -14,19 +15,18 @@ import org.hangu.center.common.enums.ServerStatusEnum;
 import org.hangu.center.server.bussiness.handler.RequestHandler;
 import org.hangu.center.server.manager.ServiceRegisterManager;
 import org.hangu.center.server.server.NettyServer;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
 /**
  * 增量拉取服务
  * @author wuzhenhong
  * @date 2023/8/14 16:24
  */
-@Service
 public class RenewAndDeltaPullServerRequestHandler implements RequestHandler<RegistryInfoDirectory> {
 
-    @Autowired
     private ServiceRegisterManager serviceRegisterManager;
+    public RenewAndDeltaPullServerRequestHandler(ServiceRegisterManager serviceRegisterManager) {
+        this.serviceRegisterManager = serviceRegisterManager;
+    }
 
     @Override
     public CommandTypeMarkEnum support() {
@@ -34,7 +34,7 @@ public class RenewAndDeltaPullServerRequestHandler implements RequestHandler<Reg
     }
 
     @Override
-    public Response handler(Request<RegistryInfoDirectory> request, NettyServer nettyServer) {
+    public Response handler(Request<RegistryInfoDirectory> request, NettyServer nettyServer, Channel channel) {
         // 拉取服务列表
         RegistryInfoDirectory registryInfo = request.getBody();
         serviceRegisterManager.renew(registryInfo.getRegistryInfoList());
