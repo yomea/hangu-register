@@ -42,7 +42,7 @@ public class RequestMessageHandler extends SimpleChannelInboundHandler<Request> 
         byte commonType = request.getCommandType();
         RequestHandler requestHandler = RequestHandlerFactory.getRequestHandlerByType(commonType);
         this.executor.execute(() -> {
-            Response response = requestHandler.handler(request, this.nettyServer.getStatus());
+            Response response = requestHandler.handler(request, this.nettyServer);
             if(!request.isOneWay()) {
                 ctx.channel().writeAndFlush(response);
             }

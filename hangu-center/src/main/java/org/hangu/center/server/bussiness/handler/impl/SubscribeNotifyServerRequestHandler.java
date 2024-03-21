@@ -35,7 +35,7 @@ public class SubscribeNotifyServerRequestHandler implements RequestHandler<Serve
     }
 
     @Override
-    public Response handler(Request<ServerInfo> request, NettyServer nettyServer, ServerStatusEnum status) {
+    public Response handler(Request<ServerInfo> request, NettyServer nettyServer) {
         // 拉取服务列表
         ServerInfo serverInfo = request.getBody();
         List<RegistryInfo> registryInfos = serviceRegisterManager.subscribe(nettyServer, serverInfo);

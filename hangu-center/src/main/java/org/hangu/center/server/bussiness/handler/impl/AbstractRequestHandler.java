@@ -16,9 +16,10 @@ import org.hangu.center.server.server.NettyServer;
 public abstract class AbstractRequestHandler<T> implements RequestHandler<T> {
 
     @Override
-    public Response handler(Request<T> request, NettyServer nettyServer, ServerStatusEnum status) {
+    public Response handler(Request<T> request, NettyServer nettyServer) {
 
         Response response;
+        ServerStatusEnum status = nettyServer.getStatus();
         if (ServerStatusEnum.STOP == status) {
             response = this.buildErrorResponse(request, status);
         } else if (ServerStatusEnum.READY == status) {

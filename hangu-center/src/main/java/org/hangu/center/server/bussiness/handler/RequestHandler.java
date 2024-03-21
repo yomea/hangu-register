@@ -14,5 +14,5 @@ public interface RequestHandler<T> {
 
     CommandTypeMarkEnum support();
 
-    Response handler(Request<T> request, NettyServer nettyServer, ServerStatusEnum status);
+    Response handler(Request<T> request, NettyServer nettyServer);
 }

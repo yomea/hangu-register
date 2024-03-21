@@ -30,7 +30,7 @@ public class RenewServerRequestHandler implements RequestHandler<RegistryInfoDir
     }
 
     @Override
-    public Response handler(Request<RegistryInfoDirectory> request, NettyServer nettyServer, ServerStatusEnum status) {
+    public Response handler(Request<RegistryInfoDirectory> request, NettyServer nettyServer) {
 
         RegistryInfoDirectory directory = request.getBody();
         serviceRegisterManager.renew(directory.getRegistryInfoList());
@@ -39,6 +39,7 @@ public class RenewServerRequestHandler implements RequestHandler<RegistryInfoDir
         response.setCommandType(request.getCommandType());
         RpcResult rpcResult = new RpcResult();
         // 返回当前服务的状态
+        ServerStatusEnum status = nettyServer.getStatus();
         rpcResult.setResult(status.getStatus());
         rpcResult.setReturnType(Integer.class);
         rpcResult.setCode(ErrorCodeEnum.SUCCESS.getCode());

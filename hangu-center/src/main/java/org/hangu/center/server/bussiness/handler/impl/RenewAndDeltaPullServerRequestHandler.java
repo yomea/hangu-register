@@ -34,7 +34,7 @@ public class RenewAndDeltaPullServerRequestHandler implements RequestHandler<Reg
     }
 
     @Override
-    public Response handler(Request<RegistryInfoDirectory> request, NettyServer nettyServer, ServerStatusEnum status) {
+    public Response handler(Request<RegistryInfoDirectory> request, NettyServer nettyServer) {
         // 拉取服务列表
         RegistryInfoDirectory registryInfo = request.getBody();
         serviceRegisterManager.renew(registryInfo.getRegistryInfoList());
@@ -42,7 +42,7 @@ public class RenewAndDeltaPullServerRequestHandler implements RequestHandler<Reg
         afterRegisterTime = Objects.isNull(afterRegisterTime) ? 0L : afterRegisterTime;
         List<RegistryInfo> infos = serviceRegisterManager.lookupAfterTime(afterRegisterTime);
 
-
+        ServerStatusEnum status = nettyServer.getStatus();
         CenterNodeInfo centerNodeInfo = new CenterNodeInfo();
         centerNodeInfo.setStatus(status.getStatus());
         centerNodeInfo.setInfoList(infos);
