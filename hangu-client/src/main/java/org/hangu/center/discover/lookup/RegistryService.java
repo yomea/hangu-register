@@ -15,6 +15,8 @@ public interface RegistryService {
      */
     void register(RegistryInfo registryInfo);
 
+    void register(RegistryInfo registryInfo, Integer retryCount);
+
     /**
      * 取消注册
      * @param serverInfo

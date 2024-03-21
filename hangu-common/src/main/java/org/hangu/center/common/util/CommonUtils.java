@@ -2,8 +2,8 @@ package org.hangu.center.common.util;
 
 import cn.hutool.core.util.IdUtil;
 import org.hangu.center.common.entity.Response;
-import org.hangu.center.common.entity.ServerInfo;
 import org.hangu.center.common.entity.RpcResult;
+import org.hangu.center.common.entity.ServerInfo;
 
 /**
  * @author wuzhenhong

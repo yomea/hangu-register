@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +37,8 @@ import org.hangu.center.discover.manager.NettyClientEventLoopManager;
 import org.hangu.center.discover.manager.RpcRequestManager;
 import org.hangu.center.discover.properties.ClientProperties;
 import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.InitializingBean;
+import org.springframework.context.ApplicationListener;
+import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
@@ -45,7 +47,7 @@ import org.springframework.util.StringUtils;
  * @date 2023/8/11 17:42
  */
 @Slf4j
-public class DiscoverClient implements Client, InitializingBean, DisposableBean {
+public class DiscoverClient implements Client, ApplicationListener<ContextRefreshedEvent>, DisposableBean {
 
     private ClientProperties clientProperties;
 
@@ -59,27 +61,6 @@ public class DiscoverClient implements Client, InitializingBean, DisposableBean 
     @Override
     public void destroy() throws Exception {
         NettyClientEventLoopManager.close();
-    }
-
-    @Override
-    public void afterPropertiesSet() throws Exception {
-
-        List<HostInfo> hostInfos = this.parseHostInfoAndCheck(clientProperties.getPeerNodeHosts());
-        this.parseOtherProperties(clientProperties);
-
-        hostInfos.stream().forEach(hostInfo -> {
-            try {
-                // 启动netty客户端
-                NettyClient nettyClient = new NettyClient(this.connectManager, clientProperties.getTransport(),
-                    hostInfo, this.getClientOtherInfo());
-                this.connectManager.cacheChannel(nettyClient);
-                nettyClient.open();
-                nettyClient.syncConnect();
-            } catch (Exception e) {
-                log.error(String.format("连接注册中心 %s:%s 失败！请检查地址", hostInfo.getHost(), hostInfo.getPort()),
-                    e);
-            }
-        });
     }
 
     @Override
@@ -112,21 +93,27 @@ public class DiscoverClient implements Client, InitializingBean, DisposableBean 
     }
 
     private List<RegistryInfo> doLookupService(Supplier<Request<?>> supplier) throws Exception {
-        int count = 0;
-        Exception ex = null;
-        List<NettyClient> exclusionList = new ArrayList<>();
-        NettyClient nettyClient;
-        while (count < 3) {
-            nettyClient = this.getCenterConnect(exclusionList);
+        return this.retryAbleJob(3, nettyClient -> {
             Request request = supplier.get();
             DefaultPromise<RpcResult> defaultPromise = new DefaultPromise<>(nettyClient.getChannel().eventLoop());
             RpcRequestManager.putFuture(request.getId(), defaultPromise);
 
-            try {
-                nettyClient.getChannel().writeAndFlush(request);
+            nettyClient.getChannel().writeAndFlush(request);
 
-                return dealResult(nettyClient, defaultPromise,
-                    clientProperties.getTransport().getPullServiceListTimeout(), "拉取服务列表");
+            return dealResult(nettyClient, defaultPromise,
+                clientProperties.getTransport().getPullServiceListTimeout(), "拉取服务列表");
+        });
+    }
+
+    private <T> T retryAbleJob(Integer retryCount, Function<NettyClient, T> function) throws Exception {
+        retryCount = Objects.isNull(retryCount) || retryCount <= 0 ? 1 : 3;
+        int count = 0;
+        Exception ex = null;
+        List<NettyClient> exclusionList = new ArrayList<>();
+        while (count < retryCount) {
+            NettyClient nettyClient = this.getCenterConnect(exclusionList);
+            try {
+                return function.apply(nettyClient);
             } catch (NoServerAvailableException e) {
                 throw e;
             } catch (Exception e) {
@@ -206,7 +193,12 @@ public class DiscoverClient implements Client, InitializingBean, DisposableBean 
 
     @Override
     public void register(RegistryInfo registryInfo) {
-        this.doRegister(registryInfo, CommandTypeMarkEnum.BATCH_REGISTER_SERVICE);
+        this.doRegister(registryInfo, CommandTypeMarkEnum.BATCH_REGISTER_SERVICE, 1);
+    }
+
+    @Override
+    public void register(RegistryInfo registryInfo, Integer retryCount) {
+        this.doRegister(registryInfo, CommandTypeMarkEnum.BATCH_REGISTER_SERVICE, retryCount);
     }
 
     @Override
@@ -216,26 +208,47 @@ public class DiscoverClient implements Client, InitializingBean, DisposableBean 
 
     @Override
     public void syncRegistry(RegistryInfo registryInfo) {
-        this.doRegister(registryInfo, CommandTypeMarkEnum.BATCH_SYNC_REGISTER_SERVICE);
+        List<NettyClient> nettyClientList = Optional.ofNullable(this.connectManager.getActiveCenterChannelList())
+            .orElse(Collections.emptyList());
+        nettyClientList.stream().forEach(nettyClient -> {
+            try {
+                this.doRegister(registryInfo, CommandTypeMarkEnum.BATCH_SYNC_REGISTER_SERVICE, 1);
+            } catch (Exception e) {
+                // 同步某个节点失败，这里不会再做重试，通过心跳去同步
+                log.error("同步 groupName: {}, interface: {}, version: {} 到 {} 节点失败！将在下次心跳时同步", registryInfo.getGroupName(),
+                    registryInfo.getInterfaceName(), registryInfo.getVersion(), registryInfo.getHostInfo());
+            }
+        });
+
     }
 
-    private void doRegister(RegistryInfo registryInfo, CommandTypeMarkEnum markEnum) {
-        NettyClient nettyClient = this.getCenterConnect(Collections.emptyList());
-        Channel channel = nettyClient.getChannel();
+    private void doRegister(RegistryInfo registryInfo, CommandTypeMarkEnum markEnum, Integer retryCount) {
 
-        Request<List<RegistryInfo>> request = new Request<>();
-        request.setId(CommonUtils.snowFlakeNextId());
-        request.setCommandType(markEnum.getType());
-        request.setBody(Collections.singletonList(registryInfo));
+        try {
+            this.retryAbleJob(retryCount, nettyClient -> {
+                Channel channel = nettyClient.getChannel();
 
-        DefaultPromise<RpcResult> defaultPromise = new DefaultPromise<>(channel.eventLoop());
-        RpcRequestManager.putFuture(request.getId(), defaultPromise);
+                Request<List<RegistryInfo>> request = new Request<>();
+                request.setId(CommonUtils.snowFlakeNextId());
+                request.setCommandType(markEnum.getType());
+                request.setBody(Collections.singletonList(registryInfo));
 
-        channel.writeAndFlush(request);
+                DefaultPromise<RpcResult> defaultPromise = new DefaultPromise<>(channel.eventLoop());
+                RpcRequestManager.putFuture(request.getId(), defaultPromise);
 
-        this.dealResult(nettyClient, defaultPromise, clientProperties.getTransport().getRegistryServiceTimeout(),
-            CommandTypeMarkEnum.BATCH_REGISTER_SERVICE.getDesc());
-        nettyClient.addRegistryInfo(registryInfo);
+                channel.writeAndFlush(request);
+
+                this.dealResult(nettyClient, defaultPromise, clientProperties.getTransport().getRegistryServiceTimeout(),
+                    CommandTypeMarkEnum.BATCH_REGISTER_SERVICE.getDesc());
+
+                nettyClient.addRegistryInfo(registryInfo);
+                return null;
+            });
+        } catch (RpcInvokerException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RpcInvokerException(ErrorCodeEnum.FAILURE.getCode(), "调用异常！", e);
+        }
     }
 
 
@@ -294,5 +307,25 @@ public class DiscoverClient implements Client, InitializingBean, DisposableBean 
     @Override
     public ClientOtherInfo getClientOtherInfo() {
         return null;
+    }
+
+    @Override
+    public void onApplicationEvent(ContextRefreshedEvent event) {
+        List<HostInfo> hostInfos = this.parseHostInfoAndCheck(clientProperties.getPeerNodeHosts());
+        this.parseOtherProperties(clientProperties);
+
+        hostInfos.stream().forEach(hostInfo -> {
+            try {
+                // 启动netty客户端
+                NettyClient nettyClient = new NettyClient(this.connectManager, clientProperties.getTransport(),
+                    hostInfo, this.getClientOtherInfo());
+                this.connectManager.cacheChannel(nettyClient);
+                nettyClient.open();
+                nettyClient.syncConnect();
+            } catch (Exception e) {
+                log.error(String.format("连接注册中心 %s:%s 失败！请检查地址", hostInfo.getHost(), hostInfo.getPort()),
+                    e);
+            }
+        });
     }
 }

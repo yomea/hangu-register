@@ -12,7 +12,6 @@ import org.hangu.center.common.properties.ThreadProperties;
 import org.hangu.center.discover.bussiness.handler.ResponseHandler;
 import org.hangu.center.discover.bussiness.handler.ResponseHandlerFactory;
 import org.hangu.center.discover.bussiness.handler.impl.RenewResponseHandler;
-import org.hangu.center.discover.client.DiscoverClient;
 import org.hangu.center.discover.properties.ClientProperties;
 import org.hangu.center.server.client.CloudDiscoverClient;
 import org.hangu.center.server.manager.ServiceRegisterManager;

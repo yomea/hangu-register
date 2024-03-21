@@ -3,7 +3,6 @@ package org.hangu.center.server.bussiness.handler.impl;
 import java.util.List;
 import java.util.Objects;
 import org.hangu.center.common.entity.CenterNodeInfo;
-import org.hangu.center.common.entity.HostInfo;
 import org.hangu.center.common.entity.RegistryInfo;
 import org.hangu.center.common.entity.RegistryInfoDirectory;
 import org.hangu.center.common.entity.Request;

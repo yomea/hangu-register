@@ -218,15 +218,21 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
                 hostInfoRegistryInfoMap = new HashMap<>();
                 serviceKeyMapHostInfos.put(key, hostInfoRegistryInfoMap);
             }
-            registryInfo.setRegisterTime(System.currentTimeMillis());
-            registryInfo.setExpireTime(System.currentTimeMillis() + this.heartExpireTimes);
+            // 如果是同步过来的，registerTime 和 expireTime 是会有值的
+            Long registerTime = registryInfo.getRegisterTime();
+            if(Objects.isNull(registerTime) || registerTime <= 0L) {
+                registryInfo.setRegisterTime(System.currentTimeMillis());
+            }
+            Long expireTime = registryInfo.getExpireTime();
+            if(Objects.isNull(expireTime) || expireTime <= 0L) {
+                registryInfo.setExpireTime(System.currentTimeMillis() + this.heartExpireTimes);
+            }
             hostInfoRegistryInfoMap.put(registryInfo.getHostInfo(), registryInfo);
             this.discoverClient.updateMaxRegistryTime(registryInfo.getRegisterTime());
         }
-        // 向其他同步注册信息
+        // 向其他节点同步注册信息
         if(sync) {
             this.workExecutorService.submit(() -> {
-                // todo：对应通道注册失败，需要重试，如果是链接失效了，等待链接激活之后再次尝试推送
                 this.discoverClient.syncRegistry(registryInfo);
             });
         }
