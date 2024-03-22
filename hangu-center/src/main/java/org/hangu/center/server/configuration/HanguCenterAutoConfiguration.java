@@ -24,6 +24,7 @@ import org.hangu.center.server.manager.ServiceRegisterManager;
 import org.hangu.center.server.properties.CenterProperties;
 import org.hangu.center.server.server.CenterServer;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,14 +33,17 @@ import org.springframework.context.annotation.Configuration;
  * Created by wuzhenhong on 2023/8/1 23:53
  */
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties({CenterProperties.class, ClientProperties.class})
+@EnableConfigurationProperties({CenterProperties.class})
 public class HanguCenterAutoConfiguration {
 
     @Autowired
     private CenterProperties centerProperties;
 
-    @Autowired
-    private ClientProperties clientProperties;
+    @Bean
+    @ConfigurationProperties(prefix = "hangu.center")
+    public ClientProperties clientProperties() {
+        return new ClientProperties();
+    }
 
     @Bean
     public ExecutorService workExecutorService() {
@@ -58,8 +62,8 @@ public class HanguCenterAutoConfiguration {
         return new CenterServer(centerProperties, workExecutorService);
     }
 
-    @Bean
-    public CloudDiscoverClient cloudDiscoverClient() {
+    @Bean(initMethod = "init", destroyMethod = "close")
+    public CloudDiscoverClient cloudDiscoverClient(ClientProperties clientProperties) {
         return new CloudDiscoverClient(clientProperties);
     }
 

@@ -17,4 +17,8 @@ public interface Client extends LookupService, RegistryService, RegistryNotifyLi
     ClientOtherInfo getClientOtherInfo();
 
     void subscribe(ServerInfo serverInfo, RegistryNotifyListener notifyListener);
+
+    void init();
+
+    void close();
 }

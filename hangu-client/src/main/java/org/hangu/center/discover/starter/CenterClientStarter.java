@@ -23,6 +23,7 @@ public class CenterClientStarter {
                 Optional.ofNullable(config.config(discoverClient)).orElse(Collections.emptyList()).stream())
             .collect(Collectors.toList());
         ResponseHandlerFactory.registryHandlers(responseHandlers);
+        discoverClient.init();
         return discoverClient;
     }
 }

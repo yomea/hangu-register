@@ -1,5 +1,7 @@
 package org.hangu.center.discover.client;
 
+import cn.hutool.core.collection.CollectionUtil;
+import cn.hutool.core.util.StrUtil;
 import io.netty.channel.Channel;
 import io.netty.util.concurrent.DefaultPromise;
 import java.util.ArrayList;
@@ -45,17 +47,13 @@ import org.hangu.center.discover.manager.CenterConnectManager;
 import org.hangu.center.discover.manager.NettyClientEventLoopManager;
 import org.hangu.center.discover.manager.RpcRequestManager;
 import org.hangu.center.discover.properties.ClientProperties;
-import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.InitializingBean;
-import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
 
 /**
  * @author wuzhenhong
  * @date 2023/8/11 17:42
  */
 @Slf4j
-public class DiscoverClient implements Client, InitializingBean, DisposableBean {
+public class DiscoverClient implements Client {
 
     private final Object  lock = new Object();
     private ClientProperties clientProperties;
@@ -195,7 +193,7 @@ public class DiscoverClient implements Client, InitializingBean, DisposableBean 
     }
 
     @Override
-    public void afterPropertiesSet() throws Exception {
+    public void init() {
         List<HostInfo> hostInfos = this.parseHostInfoAndCheck(clientProperties.getPeerNodeHosts());
         this.parseOtherProperties(clientProperties);
 
@@ -215,7 +213,7 @@ public class DiscoverClient implements Client, InitializingBean, DisposableBean 
     }
 
     @Override
-    public void destroy() throws Exception {
+    public void close() {
         NettyClientEventLoopManager.close();
     }
 
@@ -336,13 +334,13 @@ public class DiscoverClient implements Client, InitializingBean, DisposableBean 
 
     private List<HostInfo> parseHostInfoAndCheck(String peerNodeHosts) {
 
-        if (!StringUtils.hasText(peerNodeHosts)) {
+        if (StrUtil.isBlank(peerNodeHosts)) {
             throw new RpcStarterException(ErrorCodeEnum.FAILURE.getCode(), "未配置注册中心地址！");
         }
 
-        List<String> hosts = Arrays.stream(peerNodeHosts.split(",")).filter(StringUtils::hasText)
+        List<String> hosts = Arrays.stream(peerNodeHosts.split(",")).filter(StrUtil::isNotBlank)
             .collect(Collectors.toList());
-        if (CollectionUtils.isEmpty(hosts)) {
+        if (CollectionUtil.isEmpty(hosts)) {
             throw new RpcStarterException(ErrorCodeEnum.FAILURE.getCode(),
                 "注册中心地址配置错误，正确的格式为 ip:port！");
         }
@@ -365,7 +363,7 @@ public class DiscoverClient implements Client, InitializingBean, DisposableBean 
                 }
             }
         });
-        if (!CollectionUtils.isEmpty(errorIpList)) {
+        if (!CollectionUtil.isEmpty(errorIpList)) {
             throw new RpcStarterException(ErrorCodeEnum.FAILURE.getCode(),
                 String.format("注册中心地址【%s】配置错误，正确的格式为 ip:port！", errorIpList.stream().collect(
                     Collectors.joining(","))));

@@ -27,10 +27,16 @@
     </dependency>
 
     <dependency>
-      <groupId>org.hangu.center</groupId>
-      <artifactId>hangu-common</artifactId>
-      <version>1.0-SNAPSHOT</version>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter</artifactId>
     </dependency>
+    <dependency>
+      <!-- 自动生成配置元数据，用于yml属性提示 -->
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-configuration-processor</artifactId>
+      <optional>true</optional>
+    </dependency>
+
   </dependencies>
 
 

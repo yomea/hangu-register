@@ -9,6 +9,7 @@ import org.hangu.center.discover.config.impl.ClientResponseHandlerConfigDefaultI
 import org.hangu.center.discover.properties.ClientProperties;
 import org.hangu.center.discover.starter.CenterClientStarter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,20 +18,21 @@ import org.springframework.context.annotation.Configuration;
  * Created by wuzhenhong on 2023/8/1 23:53
  */
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(ClientProperties.class)
 public class HanguClientAutoConfiguration {
 
-    @Autowired
-    private ClientProperties clientProperties;
+    @Bean
+    @ConfigurationProperties(prefix = "hangu.center")
+    public ClientProperties clientProperties() {
+        return new ClientProperties();
+    }
 
     @Bean
     public ClientResponseHandlerConfig responseHandlerConfig() {
         return new ClientResponseHandlerConfigDefaultImpl();
     }
 
-    @Bean
-    public DiscoverClient discoverClient(
-        @Autowired Optional<List<ClientResponseHandlerConfig>> optionalResponseHandlerConfigs) {
+    @Bean(destroyMethod = "close")
+    public DiscoverClient discoverClient(ClientProperties clientProperties, Optional<List<ClientResponseHandlerConfig>> optionalResponseHandlerConfigs) {
         return CenterClientStarter.start(clientProperties,
             optionalResponseHandlerConfigs.orElse(Collections.emptyList()));
     }

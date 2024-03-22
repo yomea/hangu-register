@@ -1,5 +1,6 @@
 package org.hangu.center.discover.manager;
 
+import cn.hutool.core.collection.CollectionUtil;
 import io.netty.channel.Channel;
 import java.util.ArrayList;
 import java.util.List;
@@ -7,7 +8,6 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.hangu.center.discover.client.NettyClient;
-import org.springframework.util.CollectionUtils;
 
 /**
  * @author wuzhenhong
@@ -30,7 +30,7 @@ public class CenterConnectManager {
         List<Channel> channelList = centerChannelList.stream()
             .filter(NettyClient::isActive).map(NettyClient::getChannel).collect(Collectors.toList());
 
-        if (CollectionUtils.isEmpty(channelList)) {
+        if (CollectionUtil.isEmpty(channelList)) {
             return Optional.empty();
         }
         return Optional.ofNullable(channelList.get(Math.abs(idx.getAndIncrement() % channelList.size())));
@@ -57,7 +57,7 @@ public class CenterConnectManager {
             })
             .filter(e -> e.isUnKnow() || e.isComplete()).collect(Collectors.toList());
 
-        if (CollectionUtils.isEmpty(channelList)) {
+        if (CollectionUtil.isEmpty(channelList)) {
             return Optional.empty();
         }
         return Optional.ofNullable(channelList.get(Math.abs(idx.getAndIncrement() % channelList.size())));

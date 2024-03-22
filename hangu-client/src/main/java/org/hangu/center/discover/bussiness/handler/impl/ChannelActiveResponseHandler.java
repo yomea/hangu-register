@@ -1,5 +1,6 @@
 package org.hangu.center.discover.bussiness.handler.impl;
 
+import cn.hutool.core.collection.CollectionUtil;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.entity.Response;
@@ -8,7 +9,6 @@ import org.hangu.center.common.enums.CommandTypeMarkEnum;
 import org.hangu.center.discover.bussiness.handler.ResponseHandler;
 import org.hangu.center.discover.client.DiscoverClient;
 import org.hangu.center.discover.client.NettyClient;
-import org.springframework.util.CollectionUtils;
 
 /**
  * @author wuzhenhong
@@ -33,7 +33,7 @@ public class ChannelActiveResponseHandler implements ResponseHandler {
     public void handler(Response response, NettyClient nettyClient) {
         // 检查该客户端是否订阅过接口，如果订阅过，再重连成功之后，向注册中心注册新的通道
         Set<ServerInfo> serverInfoSet = nettyClient.getSubscribeServerInfoList();
-        if(CollectionUtils.isEmpty(serverInfoSet)) {
+        if(CollectionUtil.isEmpty(serverInfoSet)) {
             return;
         }
         this.discoverClient.reSendSubscribe(nettyClient, serverInfoSet);
