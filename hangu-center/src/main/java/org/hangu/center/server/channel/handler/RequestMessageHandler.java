@@ -2,9 +2,11 @@ package org.hangu.center.server.channel.handler;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import java.util.Objects;
 import java.util.concurrent.Executor;
 import org.hangu.center.common.entity.Request;
 import org.hangu.center.common.entity.Response;
+import org.hangu.center.common.enums.CommandTypeMarkEnum;
 import org.hangu.center.server.bussiness.handler.RequestHandler;
 import org.hangu.center.server.bussiness.handler.RequestHandlerFactory;
 import org.hangu.center.server.server.NettyServer;
@@ -28,6 +30,13 @@ public class RequestMessageHandler extends SimpleChannelInboundHandler<Request> 
 
     @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+        // 内部通道注销通知
+        RequestHandler requestHandler = RequestHandlerFactory.getRequestHandlerByType(CommandTypeMarkEnum.UN_SUBSCRIBE_SERVICE.getType());
+        if(Objects.nonNull(requestHandler)) {
+            this.executor.execute(() -> {
+                requestHandler.handler(null, this.nettyServer, ctx.channel());
+            });
+        }
         super.channelUnregistered(ctx);
     }
 

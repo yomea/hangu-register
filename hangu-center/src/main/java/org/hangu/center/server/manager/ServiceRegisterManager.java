@@ -2,19 +2,21 @@ package org.hangu.center.server.manager;
 
 import cn.hutool.core.net.NetUtil;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.constant.HanguCons;
@@ -30,12 +32,10 @@ import org.hangu.center.common.enums.ServerStatusEnum;
 import org.hangu.center.common.exception.NoServerAvailableException;
 import org.hangu.center.common.properties.TransportProperties;
 import org.hangu.center.common.util.CommonUtils;
-import org.hangu.center.discover.client.NettyClient;
 import org.hangu.center.discover.lookup.LookupService;
 import org.hangu.center.server.client.CloudDiscoverClient;
 import org.hangu.center.server.properties.CenterProperties;
 import org.hangu.center.server.server.CenterServer;
-import org.hangu.center.server.server.NettyServer;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
@@ -56,7 +56,9 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
     private Object LOCK = new Object();
 
     // 订阅列表
-    private final Map<String, List<Channel>> subscribeTable = new ConcurrentHashMap<>(
+    private final Map<String, Map<ChannelId, Channel>> subscribeTable = new HashMap<>(
+        DEFAULT_SIZE);
+    private final Map<ChannelId, Set<String>> channelSubKeysTable = new HashMap<>(
         DEFAULT_SIZE);
     private final Map<String, Object> subscribeLock = new ConcurrentHashMap<>(
         DEFAULT_SIZE);
@@ -367,8 +369,12 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
     private void doSubscribeNotify(ServerInfo serverInfo, List<Channel> nettyServers) {
         String key = CommonUtils.createServiceKey(serverInfo);
         List<Channel> nettyServerList = Objects.isNull(nettyServers)
-            ? subscribeTable.get(key)
+            ? subscribeTable.getOrDefault(key, Collections.emptyMap()).values().stream().collect(Collectors.toList())
             : nettyServers;
+        if (CollectionUtils.isEmpty(nettyServerList)) {
+            return;
+        }
+        nettyServerList = nettyServerList.stream().filter(Channel::isActive).collect(Collectors.toList());
         if(CollectionUtils.isEmpty(nettyServerList)) {
             return;
         }
@@ -408,12 +414,19 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
             Thread.yield();
         }
         try {
-            List<Channel> nettyServers = this.subscribeTable.get(key);
+            Map<ChannelId, Channel> nettyServers = this.subscribeTable.get(key);
             if(Objects.isNull(nettyServers)) {
-                nettyServers = new ArrayList<>();
+                nettyServers = new HashMap<>();
                 this.subscribeTable.put(key, nettyServers);
             }
-            nettyServers.add(channel);
+            nettyServers.put(channel.id(), channel);
+
+            Set<String> keySet = this.channelSubKeysTable.get(channel.id());
+            if(Objects.isNull(keySet)) {
+                keySet = new HashSet<>();
+                this.channelSubKeysTable.put(channel.id(), keySet);
+            }
+            keySet.add(key);
         } finally {
             this.subscribeLock.remove(key);
         }
@@ -424,5 +437,36 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
         lookupServer.setInterfaceName(serverInfo.getInterfaceName());
         lookupServer.setAfterRegisterTime(0L);
         return this.lookup(lookupServer);
+    }
+
+    public void unSubscribe(Channel channel, ServerInfo serverInfo) {
+        String key = CommonUtils.createServiceKey(serverInfo);
+        this.unSubscribe(channel, key, true);
+    }
+
+    public void unSubscribe(Channel channel, String key, boolean containChannelSubTab) {
+
+        while (Objects.nonNull(this.subscribeLock.putIfAbsent(key, LOCK))) {
+            Thread.yield();
+        }
+        try {
+            Map<ChannelId, Channel> nettyServers = this.subscribeTable.get(key);
+            if(Objects.nonNull(nettyServers)) {
+                nettyServers.remove(channel.id());
+            }
+            if(containChannelSubTab) {
+                Set<String> keySet = this.channelSubKeysTable.get(channel.id());
+                if(Objects.nonNull(keySet)) {
+                    keySet.remove(key);
+                }
+            }
+        } finally {
+            this.subscribeLock.remove(key);
+        }
+    }
+
+    public void unRegistered(Channel channel) {
+        Set<String> keySet = this.channelSubKeysTable.remove(channel.id());
+        keySet.stream().forEach(key -> this.unSubscribe(channel, key, false));
     }
 }

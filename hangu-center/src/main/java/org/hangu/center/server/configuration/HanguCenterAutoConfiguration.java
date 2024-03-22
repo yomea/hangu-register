@@ -81,6 +81,4 @@ public class HanguCenterAutoConfiguration {
         RequestHandlerFactory.registryHandlers(requestHandlers);
         return serviceRegisterManager;
     }
-
-
 }

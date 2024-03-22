@@ -13,6 +13,8 @@ import org.hangu.center.server.bussiness.handler.impl.RenewAndDeltaPullServerReq
 import org.hangu.center.server.bussiness.handler.impl.RenewServerRequestHandler;
 import org.hangu.center.server.bussiness.handler.impl.SubscribeNotifyServerRequestHandler;
 import org.hangu.center.server.bussiness.handler.impl.SyncRegisterServerRequestHandler;
+import org.hangu.center.server.bussiness.handler.impl.UnRegisteredServerRequestHandler;
+import org.hangu.center.server.bussiness.handler.impl.UnSubscribeNotifyServerRequestHandler;
 import org.hangu.center.server.config.RequestHandlerConfig;
 import org.hangu.center.server.manager.ServiceRegisterManager;
 import org.springframework.context.annotation.Bean;
@@ -35,6 +37,8 @@ public class RequestHandlerConfigDefaultImpl implements RequestHandlerConfig {
         requestHandlers.add(new RenewAndDeltaPullServerRequestHandler(serviceRegisterManager));
         requestHandlers.add(new RenewServerRequestHandler(serviceRegisterManager));
         requestHandlers.add(new SubscribeNotifyServerRequestHandler(serviceRegisterManager));
+        requestHandlers.add(new UnSubscribeNotifyServerRequestHandler(serviceRegisterManager));
+        requestHandlers.add(new UnRegisteredServerRequestHandler(serviceRegisterManager));
         requestHandlers.add(new SyncRegisterServerRequestHandler(serviceRegisterManager));
 
         return requestHandlers;
