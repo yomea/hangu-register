@@ -398,7 +398,7 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
     private Response buildNotifyResponse(List<RegistryInfo> registryInfos) {
         Response response = new Response();
         response.setId(0L);
-        response.setCommandType(CommandTypeMarkEnum.NOTIFY_REGISTER_SERVICE.getType());
+        response.setCommandType(CommandTypeMarkEnum.SINGLE_SUBSCRIBE_SERVICE.getType());
         RpcResult rpcResult = new RpcResult();
         rpcResult.setCode(ErrorCodeEnum.SUCCESS.getCode());
         rpcResult.setResult(registryInfos);
@@ -467,6 +467,9 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
 
     public void unRegistered(Channel channel) {
         Set<String> keySet = this.channelSubKeysTable.remove(channel.id());
+        if(CollectionUtils.isEmpty(keySet)) {
+            return;
+        }
         keySet.stream().forEach(key -> this.unSubscribe(channel, key, false));
     }
 }

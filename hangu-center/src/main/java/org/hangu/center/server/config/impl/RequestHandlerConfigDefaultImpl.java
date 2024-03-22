@@ -2,22 +2,20 @@ package org.hangu.center.server.config.impl;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.hangu.center.discover.bussiness.handler.impl.RenewResponseHandler;
 import org.hangu.center.server.bussiness.handler.RequestHandler;
+import org.hangu.center.server.bussiness.handler.impl.BatchSubscribeNotifyServerRequestHandler;
 import org.hangu.center.server.bussiness.handler.impl.PullDeltaServerRequestHandler;
 import org.hangu.center.server.bussiness.handler.impl.PullServerRequestHandler;
 import org.hangu.center.server.bussiness.handler.impl.RegisterServerRequestHandler;
 import org.hangu.center.server.bussiness.handler.impl.RemoveServerRequestHandler;
-import org.hangu.center.server.bussiness.handler.impl.RenewAndDeltaPullResponseHandler;
 import org.hangu.center.server.bussiness.handler.impl.RenewAndDeltaPullServerRequestHandler;
 import org.hangu.center.server.bussiness.handler.impl.RenewServerRequestHandler;
-import org.hangu.center.server.bussiness.handler.impl.SubscribeNotifyServerRequestHandler;
+import org.hangu.center.server.bussiness.handler.impl.SingleSubscribeNotifyServerRequestHandler;
 import org.hangu.center.server.bussiness.handler.impl.SyncRegisterServerRequestHandler;
 import org.hangu.center.server.bussiness.handler.impl.UnRegisteredServerRequestHandler;
 import org.hangu.center.server.bussiness.handler.impl.UnSubscribeNotifyServerRequestHandler;
 import org.hangu.center.server.config.RequestHandlerConfig;
 import org.hangu.center.server.manager.ServiceRegisterManager;
-import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
 /**
@@ -36,7 +34,8 @@ public class RequestHandlerConfigDefaultImpl implements RequestHandlerConfig {
         requestHandlers.add(new RemoveServerRequestHandler(serviceRegisterManager));
         requestHandlers.add(new RenewAndDeltaPullServerRequestHandler(serviceRegisterManager));
         requestHandlers.add(new RenewServerRequestHandler(serviceRegisterManager));
-        requestHandlers.add(new SubscribeNotifyServerRequestHandler(serviceRegisterManager));
+        requestHandlers.add(new SingleSubscribeNotifyServerRequestHandler(serviceRegisterManager));
+        requestHandlers.add(new BatchSubscribeNotifyServerRequestHandler(serviceRegisterManager));
         requestHandlers.add(new UnSubscribeNotifyServerRequestHandler(serviceRegisterManager));
         requestHandlers.add(new UnRegisteredServerRequestHandler(serviceRegisterManager));
         requestHandlers.add(new SyncRegisterServerRequestHandler(serviceRegisterManager));

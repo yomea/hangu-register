@@ -28,7 +28,7 @@ public class SubscribeNotifyResponseHandler implements ResponseHandler {
 
     @Override
     public CommandTypeMarkEnum support() {
-        return CommandTypeMarkEnum.NOTIFY_REGISTER_SERVICE;
+        return CommandTypeMarkEnum.SINGLE_SUBSCRIBE_SERVICE;
     }
 
     @Override

@@ -31,7 +31,7 @@ public class RequestMessageHandler extends SimpleChannelInboundHandler<Request> 
     @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
         // 内部通道注销通知
-        RequestHandler requestHandler = RequestHandlerFactory.getRequestHandlerByType(CommandTypeMarkEnum.UN_SUBSCRIBE_SERVICE.getType());
+        RequestHandler requestHandler = RequestHandlerFactory.getRequestHandlerByType(CommandTypeMarkEnum.UN_REGISTERED_SERVICE.getType());
         if(Objects.nonNull(requestHandler)) {
             this.executor.execute(() -> {
                 requestHandler.handler(null, this.nettyServer, ctx.channel());

@@ -7,6 +7,7 @@ import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.entity.Response;
 import org.hangu.center.common.entity.RpcResult;
+import org.hangu.center.common.enums.CommandTypeMarkEnum;
 import org.hangu.center.discover.bussiness.handler.ResponseHandler;
 import org.hangu.center.discover.bussiness.handler.ResponseHandlerFactory;
 import org.hangu.center.discover.client.NettyClient;
@@ -25,6 +26,15 @@ public class ResponseMessageHandler extends SimpleChannelInboundHandler<Response
 
     public ResponseMessageHandler(NettyClient nettyClient) {
         this.nettyClient = nettyClient;
+    }
+
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        ResponseHandler responseHandler = ResponseHandlerFactory.getResponseHandlerByType(CommandTypeMarkEnum.BATCH_SUBSCRIBE_SERVICE.getType());
+        if(Objects.nonNull(responseHandler)) {
+            responseHandler.handler(null, this.nettyClient);
+        }
+        super.channelActive(ctx);
     }
 
     @Override

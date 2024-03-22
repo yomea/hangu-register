@@ -10,12 +10,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -45,8 +47,6 @@ import org.hangu.center.discover.manager.RpcRequestManager;
 import org.hangu.center.discover.properties.ClientProperties;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.context.ApplicationListener;
-import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
@@ -161,22 +161,28 @@ public class DiscoverClient implements Client, InitializingBean, DisposableBean 
 
     @Override
     public void subscribe(ServerInfo serverInfo, RegistryNotifyListener notifyListener) {
-        String key = CommonUtils.createServiceKey(serverInfo);
-        while (keyMapListenerLockMap.putIfAbsent(key, lock) != null) {
-            Thread.yield();
-        }
 
-        try {
+        this.subscribeWithLock(serverInfo, key -> {
             List<RegistryNotifyListener> listeners = keyMapListenerMap.get(key);
             if(Objects.isNull(listeners)) {
                 listeners = new ArrayList<>();
                 keyMapListenerMap.put(key, listeners);
             }
             listeners.add(notifyListener);
+        });
+        this.sendSubscribeRequest(serverInfo);
+    }
+
+    private void subscribeWithLock(ServerInfo serverInfo, Consumer<String> consumer) {
+        String key = CommonUtils.createServiceKey(serverInfo);
+        while (keyMapListenerLockMap.putIfAbsent(key, lock) != null) {
+            Thread.yield();
+        }
+        try {
+            consumer.accept(key);
         } finally {
             keyMapListenerLockMap.remove(key);
         }
-        this.sendSubscribeRequest(serverInfo);
     }
 
     @Override
@@ -396,7 +402,11 @@ public class DiscoverClient implements Client, InitializingBean, DisposableBean 
 
     private void sendSubscribeRequest(ServerInfo serverInfo) {
         try {
-            this.sendCommonRequest(CommandTypeMarkEnum.NOTIFY_REGISTER_SERVICE, 0L, serverInfo);
+            NettyClient nettyClient = this.sendCommonRequest(CommandTypeMarkEnum.SINGLE_SUBSCRIBE_SERVICE, 0L, serverInfo);
+            this.subscribeWithLock(serverInfo, key -> {
+                Set<ServerInfo> subscribeSet = nettyClient.getSubscribeServerInfoList();
+                subscribeSet.add(serverInfo);
+            });
         } catch (Exception e) {
             log.error("订阅失败！", e);
             this.scheduledExecutorService.schedule(() -> {
@@ -405,8 +415,13 @@ public class DiscoverClient implements Client, InitializingBean, DisposableBean 
         }
     }
 
-    private <T> void sendCommonRequest(CommandTypeMarkEnum markEnum, Long id, T data) {
+    private <T> NettyClient sendCommonRequest(CommandTypeMarkEnum markEnum, Long id, T data) {
         NettyClient nettyClient = this.getCenterConnect(Collections.emptyList());
+        this.sendCommonRequest(nettyClient, markEnum, id, data);
+        return nettyClient;
+    }
+
+    private <T> void sendCommonRequest(NettyClient nettyClient, CommandTypeMarkEnum markEnum, Long id, T data) {
         Request<T> request = new Request<>();
         request.setId(id);
         request.setCommandType(markEnum.getType());
@@ -415,4 +430,16 @@ public class DiscoverClient implements Client, InitializingBean, DisposableBean 
         nettyClient.getChannel().writeAndFlush(request);
     }
 
+    public void reSendSubscribe(NettyClient nettyClient, Set<ServerInfo> serverInfoSet) {
+
+        try {
+            this.sendCommonRequest(nettyClient, CommandTypeMarkEnum.SINGLE_SUBSCRIBE_SERVICE, 0L, serverInfoSet);
+        } catch (Exception e) {
+            log.error("订阅失败！", e);
+            this.scheduledExecutorService.schedule(() -> {
+                this.reSendSubscribe(nettyClient, serverInfoSet);
+            }, 2, TimeUnit.SECONDS);
+        }
+
+    }
 }
