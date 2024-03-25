@@ -32,7 +32,8 @@ public class HanguClientAutoConfiguration {
     }
 
     @Bean(destroyMethod = "close")
-    public DiscoverClient discoverClient(ClientProperties clientProperties, Optional<List<ClientResponseHandlerConfig>> optionalResponseHandlerConfigs) {
+    public DiscoverClient discoverClient(ClientProperties clientProperties, Optional<List<ClientResponseHandlerConfig>> optionalResponseHandlerConfigs)
+        throws Exception {
         return CenterClientStarter.start(clientProperties,
             optionalResponseHandlerConfigs.orElse(Collections.emptyList()));
     }

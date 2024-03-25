@@ -193,7 +193,7 @@ public class DiscoverClient implements Client {
     }
 
     @Override
-    public void init() {
+    public void init() throws Exception {
         List<HostInfo> hostInfos = this.parseHostInfoAndCheck(clientProperties.getPeerNodeHosts());
         this.parseOtherProperties(clientProperties);
 
@@ -213,7 +213,7 @@ public class DiscoverClient implements Client {
     }
 
     @Override
-    public void close() {
+    public void close() throws Exception {
         NettyClientEventLoopManager.close();
     }
 

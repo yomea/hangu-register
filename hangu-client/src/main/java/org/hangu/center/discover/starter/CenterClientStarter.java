@@ -16,7 +16,8 @@ import org.hangu.center.discover.properties.ClientProperties;
  */
 public class CenterClientStarter {
 
-    public static DiscoverClient start(ClientProperties clientProperties, List<ClientResponseHandlerConfig> configs) {
+    public static DiscoverClient start(ClientProperties clientProperties, List<ClientResponseHandlerConfig> configs)
+        throws Exception {
         DiscoverClient discoverClient = new DiscoverClient(clientProperties);
         List<ResponseHandler> responseHandlers = Optional.ofNullable(configs).orElse(Collections.emptyList()).stream()
             .flatMap(config ->

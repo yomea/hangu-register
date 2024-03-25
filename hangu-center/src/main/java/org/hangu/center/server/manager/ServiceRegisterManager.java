@@ -19,6 +19,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.hangu.center.common.api.Init;
 import org.hangu.center.common.constant.HanguCons;
 import org.hangu.center.common.entity.HostInfo;
 import org.hangu.center.common.entity.LookupServer;
@@ -36,7 +37,6 @@ import org.hangu.center.discover.lookup.LookupService;
 import org.hangu.center.server.client.CloudDiscoverClient;
 import org.hangu.center.server.properties.CenterProperties;
 import org.hangu.center.server.server.CenterServer;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
@@ -47,7 +47,7 @@ import org.springframework.util.StringUtils;
  * @date 2023/7/31 15:07
  */
 @Slf4j
-public class ServiceRegisterManager implements InitializingBean, LookupService {
+public class ServiceRegisterManager implements Init, LookupService {
 
     private static final int DEFAULT_SIZE = 1024;
 
@@ -134,7 +134,7 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
 
 
     @Override
-    public void afterPropertiesSet() throws Exception {
+    public void init() throws Exception {
         this.bindLocalHost();
         // 从其他节点同步注册信息
         // 将自己注册到其他的节点上，用于监控在线的节点
@@ -202,6 +202,16 @@ public class ServiceRegisterManager implements InitializingBean, LookupService {
 
     private void startClearTask() {
         this.scheduledExecutorService.schedule(this::doClearExpireData, 24, TimeUnit.HOURS);
+        this.scheduledExecutorService.schedule(this::doClearInvalidSubChannel, 10, TimeUnit.MINUTES);
+    }
+
+    private void doClearInvalidSubChannel() {
+        this.subscribeTable.entrySet().stream().forEach(entry -> {
+            Map<ChannelId, Channel> map = entry.getValue();
+            List<Channel> removeList = map.values().stream().filter(channel -> !channel.isActive())
+                .collect(Collectors.toList());
+            removeList.stream().forEach(channel -> this.unRegistered(channel));
+        });
     }
 
     private void doClearExpireData() {

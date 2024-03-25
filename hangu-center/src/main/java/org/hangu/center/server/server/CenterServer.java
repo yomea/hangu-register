@@ -1,16 +1,16 @@
 package org.hangu.center.server.server;
 
 import java.util.concurrent.ExecutorService;
+import org.hangu.center.common.api.Close;
+import org.hangu.center.common.api.Init;
 import org.hangu.center.common.enums.ServerStatusEnum;
 import org.hangu.center.server.properties.CenterProperties;
-import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.InitializingBean;
 
 /**
  * @author wuzhenhong
  * @date 2023/8/11 17:28
  */
-public class CenterServer implements InitializingBean, DisposableBean {
+public class CenterServer implements Init, Close {
 
     private NettyServer nettyServer;
     private CenterProperties centerProperties;
@@ -23,15 +23,14 @@ public class CenterServer implements InitializingBean, DisposableBean {
     }
 
     @Override
-    public void afterPropertiesSet() throws Exception {
+    public void init() throws Exception {
         this.initServer();
         this.nettyServer.setStatus(ServerStatusEnum.READY);
     }
 
     @Override
-    public void destroy() throws Exception {
+    public void close() throws Exception {
         nettyServer.close();
-        executor.shutdown();
     }
 
     private void initServer() {
