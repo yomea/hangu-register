@@ -8,9 +8,7 @@ import org.hangu.center.discover.config.ClientResponseHandlerConfig;
 import org.hangu.center.discover.config.impl.ClientResponseHandlerConfigDefaultImpl;
 import org.hangu.center.discover.properties.ClientProperties;
 import org.hangu.center.discover.starter.CenterClientStarter;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

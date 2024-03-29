@@ -1,7 +1,6 @@
 package org.hangu.center.server.client;
 
 import org.hangu.center.discover.client.DiscoverClient;
-import org.hangu.center.discover.entity.ClientOtherInfo;
 import org.hangu.center.discover.properties.ClientProperties;
 
 /**
@@ -10,20 +9,12 @@ import org.hangu.center.discover.properties.ClientProperties;
  */
 public class CloudDiscoverClient extends DiscoverClient {
 
-    private ClientOtherInfo clientOtherInfo;
-
     public CloudDiscoverClient(ClientProperties clientProperties) {
         super(clientProperties);
-        this.clientOtherInfo = new ClientOtherInfo(true, 0L);
-    }
-
-    public void updateMaxRegistryTime(long registryTime) {
-        this.clientOtherInfo.setMaxRegistryTime(Math.max(registryTime,
-            this.clientOtherInfo.getMaxRegistryTime()));
     }
 
     @Override
-    public ClientOtherInfo getClientOtherInfo() {
-        return clientOtherInfo;
+    public boolean isCenter() {
+        return true;
     }
 }

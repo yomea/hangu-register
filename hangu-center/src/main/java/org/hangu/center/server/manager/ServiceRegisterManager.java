@@ -282,7 +282,6 @@ public class ServiceRegisterManager implements Init, LookupService {
                 registryInfo.setExpireTime(System.currentTimeMillis() + this.heartExpireTimes);
             }
             hostInfoRegistryInfoMap.put(registryInfo.getHostInfo(), registryInfo);
-            this.discoverClient.updateMaxRegistryTime(registryInfo.getRegisterTime());
         }
         // 向其他节点同步注册信息
         if(sync) {

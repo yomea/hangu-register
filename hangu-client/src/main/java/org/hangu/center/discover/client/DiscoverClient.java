@@ -42,7 +42,6 @@ import org.hangu.center.common.exception.ServerNodeUnCompleteException;
 import org.hangu.center.common.listener.RegistryNotifyListener;
 import org.hangu.center.common.properties.TransportProperties;
 import org.hangu.center.common.util.CommonUtils;
-import org.hangu.center.discover.entity.ClientOtherInfo;
 import org.hangu.center.discover.manager.CenterConnectManager;
 import org.hangu.center.discover.manager.NettyClientEventLoopManager;
 import org.hangu.center.discover.manager.RpcRequestManager;
@@ -153,8 +152,8 @@ public class DiscoverClient implements Client {
     }
 
     @Override
-    public ClientOtherInfo getClientOtherInfo() {
-        return null;
+    public boolean isCenter() {
+        return false;
     }
 
     @Override
@@ -201,7 +200,7 @@ public class DiscoverClient implements Client {
             try {
                 // 启动netty客户端
                 NettyClient nettyClient = new NettyClient(this.connectManager, clientProperties.getTransport(),
-                    hostInfo, this.getClientOtherInfo());
+                    hostInfo, this.isCenter());
                 this.connectManager.cacheChannel(nettyClient);
                 nettyClient.open();
                 nettyClient.syncConnect();

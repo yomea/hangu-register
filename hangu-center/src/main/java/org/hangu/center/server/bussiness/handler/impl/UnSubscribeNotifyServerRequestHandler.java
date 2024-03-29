@@ -1,8 +1,6 @@
 package org.hangu.center.server.bussiness.handler.impl;
 
 import io.netty.channel.Channel;
-import java.util.List;
-import org.hangu.center.common.entity.RegistryInfo;
 import org.hangu.center.common.entity.Request;
 import org.hangu.center.common.entity.Response;
 import org.hangu.center.common.entity.RpcResult;

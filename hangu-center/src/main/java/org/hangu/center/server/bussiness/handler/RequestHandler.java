@@ -4,7 +4,6 @@ import io.netty.channel.Channel;
 import org.hangu.center.common.entity.Request;
 import org.hangu.center.common.entity.Response;
 import org.hangu.center.common.enums.CommandTypeMarkEnum;
-import org.hangu.center.common.enums.ServerStatusEnum;
 import org.hangu.center.server.server.NettyServer;
 
 /**

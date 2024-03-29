@@ -43,6 +43,8 @@ public class RenewAndDeltaPullResponseHandler implements ResponseHandler {
             nettyClient.setStatus(ServerStatusEnum.getEnumByStatus(centerNodeInfo.getStatus()));
             List<RegistryInfo> infoList = Optional.ofNullable(centerNodeInfo.getInfoList()).orElse(Collections.emptyList());
             infoList.stream().forEach(serviceRegisterManager::register);
+            Long maxPullRegisterTime = infoList.stream().map(RegistryInfo::getRegisterTime).max(Long::compareTo).orElse(0L);
+            nettyClient.updateMaxPullRegistryTime(maxPullRegisterTime);
         }
     }
 }

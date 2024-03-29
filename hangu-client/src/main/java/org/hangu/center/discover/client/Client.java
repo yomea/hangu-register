@@ -1,12 +1,9 @@
 package org.hangu.center.discover.client;
 
-import java.util.List;
 import org.hangu.center.common.api.Close;
 import org.hangu.center.common.api.Init;
-import org.hangu.center.common.entity.RegistryInfo;
 import org.hangu.center.common.entity.ServerInfo;
 import org.hangu.center.common.listener.RegistryNotifyListener;
-import org.hangu.center.discover.entity.ClientOtherInfo;
 import org.hangu.center.discover.lookup.LookupService;
 import org.hangu.center.discover.lookup.RegistryService;
 
@@ -16,7 +13,7 @@ import org.hangu.center.discover.lookup.RegistryService;
  */
 public interface Client extends LookupService, RegistryService, RegistryNotifyListener, Init, Close {
 
-    ClientOtherInfo getClientOtherInfo();
+    boolean isCenter();
 
     void subscribe(ServerInfo serverInfo, RegistryNotifyListener notifyListener);
 }

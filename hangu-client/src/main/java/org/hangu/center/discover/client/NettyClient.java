@@ -21,14 +21,12 @@ import org.hangu.center.common.channel.handler.ByteFrameDecoder;
 import org.hangu.center.common.entity.HostInfo;
 import org.hangu.center.common.entity.RegistryInfo;
 import org.hangu.center.common.entity.Request;
-import org.hangu.center.common.entity.Response;
 import org.hangu.center.common.entity.ServerInfo;
 import org.hangu.center.common.enums.ServerStatusEnum;
 import org.hangu.center.common.properties.TransportProperties;
 import org.hangu.center.discover.channel.handler.HeartBeatPongHandler;
 import org.hangu.center.discover.channel.handler.RequestMessageCodec;
 import org.hangu.center.discover.channel.handler.ResponseMessageHandler;
-import org.hangu.center.discover.entity.ClientOtherInfo;
 import org.hangu.center.discover.manager.CenterConnectManager;
 import org.hangu.center.discover.manager.NettyClientEventLoopManager;
 
@@ -49,26 +47,21 @@ public class NettyClient {
 
     private Channel channel;
 
-    private ClientOtherInfo clientOtherInfo;
+    private boolean center;
+
+    private Long maxPullRegistryTime = 0L;
 
     private ServerStatusEnum status = ServerStatusEnum.UN_KNOW;
 
     private List<RegistryInfo> registryInfoList = new ArrayList<>();
     private Set<ServerInfo> subscribeServerInfoList = new HashSet<>();
 
-    public NettyClient(CenterConnectManager connectManager, TransportProperties transport, HostInfo hostInfo) {
-        this.connectManager = connectManager;
-        this.transport = transport;
-        this.hostInfo = hostInfo;
-        this.clientOtherInfo = new ClientOtherInfo(false, 0L);
-    }
-
     public NettyClient(CenterConnectManager connectManager, TransportProperties transport, HostInfo hostInfo,
-        ClientOtherInfo clientOtherInfo) {
+        boolean center) {
         this.connectManager = connectManager;
         this.transport = transport;
         this.hostInfo = hostInfo;
-        this.clientOtherInfo = clientOtherInfo;
+        this.center = center;
     }
 
     public void open() {
@@ -148,7 +141,7 @@ public class NettyClient {
     }
 
     public boolean isCenter() {
-        return Objects.nonNull(this.clientOtherInfo) && this.clientOtherInfo.isCenter();
+        return this.center;
     }
 
     public HostInfo getHostInfo() {
@@ -176,11 +169,16 @@ public class NettyClient {
     public void addSubscribeServerInfo(ServerInfo serverInfo) {
         this.subscribeServerInfoList.add(serverInfo);
     }
-    public ClientOtherInfo getClientProperties() {
-        return clientOtherInfo;
-    }
 
     public void send(Request<?> request) {
         this.channel.writeAndFlush(request);
+    }
+
+    public Long getMaxPullRegistryTime() {
+        return this.maxPullRegistryTime;
+    }
+
+    public synchronized void updateMaxPullRegistryTime(long pullRegistryTime) {
+        this.maxPullRegistryTime = Math.max(this.getMaxPullRegistryTime(), pullRegistryTime);
     }
 }
