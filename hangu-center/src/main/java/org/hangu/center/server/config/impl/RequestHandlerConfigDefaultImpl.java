@@ -12,6 +12,7 @@ import org.hangu.center.server.bussiness.handler.impl.RenewAndDeltaPullServerReq
 import org.hangu.center.server.bussiness.handler.impl.RenewServerRequestHandler;
 import org.hangu.center.server.bussiness.handler.impl.SingleSubscribeNotifyServerRequestHandler;
 import org.hangu.center.server.bussiness.handler.impl.SyncRegisterServerRequestHandler;
+import org.hangu.center.server.bussiness.handler.impl.SyncUnRegisterServerRequestHandler;
 import org.hangu.center.server.bussiness.handler.impl.UnRegisteredServerRequestHandler;
 import org.hangu.center.server.bussiness.handler.impl.UnSubscribeNotifyServerRequestHandler;
 import org.hangu.center.server.config.RequestHandlerConfig;
@@ -39,6 +40,7 @@ public class RequestHandlerConfigDefaultImpl implements RequestHandlerConfig {
         requestHandlers.add(new UnSubscribeNotifyServerRequestHandler(serviceRegisterManager));
         requestHandlers.add(new UnRegisteredServerRequestHandler(serviceRegisterManager));
         requestHandlers.add(new SyncRegisterServerRequestHandler(serviceRegisterManager));
+        requestHandlers.add(new SyncUnRegisterServerRequestHandler(serviceRegisterManager));
 
         return requestHandlers;
     }

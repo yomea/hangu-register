@@ -25,6 +25,8 @@ public class CenterClientStarter {
                 Optional.ofNullable(config.config(discoverClient)).orElse(Collections.emptyList()).stream())
             .collect(Collectors.toList());
         ResponseHandlerFactory.registryHandlers(responseHandlers);
+        // 默认的响应处理
+        ResponseHandlerFactory.registryHandlers(new ClientResponseHandlerConfigDefaultImpl().config(discoverClient));
         discoverClient.init();
         return discoverClient;
     }

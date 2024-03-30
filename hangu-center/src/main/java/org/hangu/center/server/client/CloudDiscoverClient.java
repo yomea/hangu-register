@@ -1,5 +1,6 @@
 package org.hangu.center.server.client;
 
+import org.hangu.center.common.entity.RegistryInfo;
 import org.hangu.center.discover.client.DiscoverClient;
 import org.hangu.center.discover.properties.ClientProperties;
 

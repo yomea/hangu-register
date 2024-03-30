@@ -19,9 +19,11 @@ public interface RegistryService {
 
     /**
      * 取消注册
-     * @param serverInfo
+     * @param registryInfo
      */
     void unRegister(RegistryInfo registryInfo);
 
     void syncRegistry(RegistryInfo registryInfo);
+
+    void syncUnRegister(RegistryInfo registryInfo);
 }

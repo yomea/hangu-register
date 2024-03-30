@@ -110,29 +110,7 @@ public class DiscoverClient implements Client {
 
     @Override
     public void unRegister(RegistryInfo registryInfo) {
-        try {
-            this.retryAbleJob(1, nettyClient -> {
-                Channel channel = nettyClient.getChannel();
-
-                Request<List<RegistryInfo>> request = new Request<>();
-                request.setId(CommonUtils.snowFlakeNextId());
-                request.setCommandType(CommandTypeMarkEnum.BATCH_REMOVE_SERVICE.getType());
-                request.setBody(Collections.singletonList(registryInfo));
-
-                DefaultPromise<RpcResult> defaultPromise = new DefaultPromise<>(channel.eventLoop());
-                RpcRequestManager.putFuture(request.getId(), defaultPromise);
-
-                channel.writeAndFlush(request);
-
-                this.dealResult(nettyClient, defaultPromise, clientProperties.getTransport().getRegistryServiceTimeout(),
-                    CommandTypeMarkEnum.BATCH_REMOVE_SERVICE.getDesc());
-                return null;
-            });
-        } catch (RpcInvokerException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RpcInvokerException(ErrorCodeEnum.FAILURE.getCode(), "调用异常！", e);
-        }
+        this.doUnRegister(registryInfo, CommandTypeMarkEnum.BATCH_REMOVE_SERVICE, 1);
     }
 
     @Override
@@ -149,6 +127,21 @@ public class DiscoverClient implements Client {
             }
         });
 
+    }
+
+    @Override
+    public void syncUnRegister(RegistryInfo registryInfo) {
+        List<NettyClient> nettyClientList = Optional.ofNullable(this.connectManager.getActiveCenterChannelList())
+            .orElse(Collections.emptyList());
+        nettyClientList.stream().forEach(nettyClient -> {
+            try {
+                this.doUnRegister(registryInfo, CommandTypeMarkEnum.BATCH_SYNC_REMOVE_SERVICE, 1);
+            } catch (Exception e) {
+                // 同步某个节点失败，这里不会再做重试，通过心跳去同步
+                log.error("同步 groupName: {}, interface: {}, version: {} 到 {} 节点失败！将在下次心跳时同步", registryInfo.getGroupName(),
+                    registryInfo.getInterfaceName(), registryInfo.getVersion(), registryInfo.getHostInfo());
+            }
+        });
     }
 
     @Override
@@ -214,6 +207,32 @@ public class DiscoverClient implements Client {
     @Override
     public void close() throws Exception {
         NettyClientEventLoopManager.close();
+    }
+
+    public void doUnRegister(RegistryInfo registryInfo, CommandTypeMarkEnum markEnum, Integer retryCount) {
+        try {
+            this.retryAbleJob(retryCount, nettyClient -> {
+                Channel channel = nettyClient.getChannel();
+
+                Request<List<RegistryInfo>> request = new Request<>();
+                request.setId(CommonUtils.snowFlakeNextId());
+                request.setCommandType(markEnum.getType());
+                request.setBody(Collections.singletonList(registryInfo));
+
+                DefaultPromise<RpcResult> defaultPromise = new DefaultPromise<>(channel.eventLoop());
+                RpcRequestManager.putFuture(request.getId(), defaultPromise);
+
+                channel.writeAndFlush(request);
+
+                this.dealResult(nettyClient, defaultPromise, clientProperties.getTransport().getRegistryServiceTimeout(),
+                    markEnum.getDesc());
+                return null;
+            });
+        } catch (RpcInvokerException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RpcInvokerException(ErrorCodeEnum.FAILURE.getCode(), "调用异常！", e);
+        }
     }
 
     private void doRegister(RegistryInfo registryInfo, CommandTypeMarkEnum markEnum, Integer retryCount) {

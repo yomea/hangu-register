@@ -294,10 +294,24 @@ public class ServiceRegisterManager implements Init, LookupService {
     }
 
     public void unRegister(RegistryInfo registryInfo) {
+        this.doUnRegister(registryInfo, true);
+    }
+
+    public void syncUnRegistry(RegistryInfo registryInfo) {
+        this.doUnRegister(registryInfo, false);
+    }
+
+    private void doUnRegister(RegistryInfo registryInfo, boolean sync) {
         String key = CommonUtils.createServiceKey(registryInfo);
         Map<HostInfo, RegistryInfo> map = serviceKeyMapHostInfos.get(key);
         if(!CollectionUtils.isEmpty(map)) {
             map.remove(registryInfo.getHostInfo());
+            // 向其他节点同步注册信息
+            if(sync) {
+                this.workExecutorService.submit(() -> {
+                    this.discoverClient.syncUnRegister(registryInfo);
+                });
+            }
             this.subscribeNotify(Collections.singletonList(registryInfo));
         }
     }
