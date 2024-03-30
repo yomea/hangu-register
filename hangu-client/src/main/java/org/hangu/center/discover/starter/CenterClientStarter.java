@@ -8,6 +8,7 @@ import org.hangu.center.discover.bussiness.handler.ResponseHandler;
 import org.hangu.center.discover.bussiness.handler.ResponseHandlerFactory;
 import org.hangu.center.discover.client.DiscoverClient;
 import org.hangu.center.discover.config.ClientResponseHandlerConfig;
+import org.hangu.center.discover.config.impl.ClientResponseHandlerConfigDefaultImpl;
 import org.hangu.center.discover.properties.ClientProperties;
 
 /**
@@ -23,6 +24,16 @@ public class CenterClientStarter {
             .flatMap(config ->
                 Optional.ofNullable(config.config(discoverClient)).orElse(Collections.emptyList()).stream())
             .collect(Collectors.toList());
+        ResponseHandlerFactory.registryHandlers(responseHandlers);
+        discoverClient.init();
+        return discoverClient;
+    }
+
+    public static DiscoverClient start(ClientProperties clientProperties)
+        throws Exception {
+        DiscoverClient discoverClient = new DiscoverClient(clientProperties);
+        ClientResponseHandlerConfig config = new ClientResponseHandlerConfigDefaultImpl();
+        List<ResponseHandler> responseHandlers = config.config(discoverClient);
         ResponseHandlerFactory.registryHandlers(responseHandlers);
         discoverClient.init();
         return discoverClient;
