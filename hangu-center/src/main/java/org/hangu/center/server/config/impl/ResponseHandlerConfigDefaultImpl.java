@@ -3,7 +3,7 @@ package org.hangu.center.server.config.impl;
 import java.util.ArrayList;
 import java.util.List;
 import org.hangu.center.discover.bussiness.handler.ResponseHandler;
-import org.hangu.center.discover.bussiness.handler.impl.ChannelActiveResponseHandler;
+import org.hangu.center.discover.bussiness.handler.impl.ChannelUnregisteredResponseHandler;
 import org.hangu.center.discover.bussiness.handler.impl.RenewResponseHandler;
 import org.hangu.center.discover.bussiness.handler.impl.SubscribeNotifyResponseHandler;
 import org.hangu.center.discover.client.DiscoverClient;
@@ -26,7 +26,7 @@ public class ResponseHandlerConfigDefaultImpl implements ResponseHandlerConfig {
         responseHandlers.add(new RenewResponseHandler());
         responseHandlers.add(new SubscribeNotifyResponseHandler(discoverClient));
         responseHandlers.add(new RenewAndDeltaPullResponseHandler(serviceRegisterManager));
-        responseHandlers.add(new ChannelActiveResponseHandler(discoverClient));
+        responseHandlers.add(new ChannelUnregisteredResponseHandler(discoverClient));
 
         return responseHandlers;
     }

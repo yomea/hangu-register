@@ -1,9 +1,7 @@
 package org.hangu.center.server.manager;
 
-import cn.hutool.core.util.NumberUtil;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelId;
-import java.util.AbstractCollection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -42,7 +40,6 @@ import org.hangu.center.server.properties.CenterProperties;
 import org.hangu.center.server.server.CenterServer;
 import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.NumberUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -55,8 +52,6 @@ import org.springframework.util.StringUtils;
 public class ServiceRegisterManager implements Init, Close, LookupService {
 
     private static final int DEFAULT_SIZE = 1024;
-
-    private static final int TIME_DELAY = 2 * 60 * 1000;
 
     private Object LOCK = new Object();
 
@@ -149,8 +144,7 @@ public class ServiceRegisterManager implements Init, Close, LookupService {
 
         String peerNodeHosts = this.centerProperties.getPeerNodeHosts();
         List<String> ipAddressList = Arrays.stream(
-                StringUtils.tokenizeToStringArray(AbstractApplicationContext.CONFIG_LOCATION_DELIMITERS,
-                    peerNodeHosts)).filter(StringUtils::hasText)
+                StringUtils.tokenizeToStringArray(peerNodeHosts, AbstractApplicationContext.CONFIG_LOCATION_DELIMITERS)).filter(StringUtils::hasText)
             .filter(ipAddress -> {
                 String[] ipPort = ipAddress.split(":");
                 if (ipPort.length == 2) {
@@ -190,7 +184,7 @@ public class ServiceRegisterManager implements Init, Close, LookupService {
     }
 
     private void startClearTask() {
-        this.scheduledExecutorService.schedule(this::doClearExpireData, 24, TimeUnit.HOURS);
+        this.scheduledExecutorService.schedule(this::doClearExpireData, 10, TimeUnit.SECONDS);
         this.scheduledExecutorService.schedule(this::doClearInvalidSubChannel, 10, TimeUnit.MINUTES);
     }
 
@@ -220,6 +214,7 @@ public class ServiceRegisterManager implements Init, Close, LookupService {
                 removeHostInfos.stream().forEach(registryInfoMap::remove);
             });
         }
+        // 对失效了的数据发布通知
         this.subscribeNotify(removeRegistryInfoMap.values().stream().collect(Collectors.toList()));
     }
 

@@ -94,12 +94,12 @@ public class HeartBeatPongHandler extends ChannelInboundHandlerAdapter {
             RegistryInfoDirectory directory = new RegistryInfoDirectory();
             Long maxPullRegistryTime = this.nettyClient.getMaxPullRegistryTime();
             directory.setRegisterTime(maxPullRegistryTime);
-            directory.setRegistryInfoList(this.nettyClient.getRegistryInfoList());
+            directory.setRegistryInfoList(this.nettyClient.getDiscoverClient().getRegistryInfoTableList());
             request.setBody(directory);
         } else {
             request.setCommandType(CommandTypeMarkEnum.RENEW_SERVICE.getType());
             RegistryInfoDirectory directory = new RegistryInfoDirectory();
-            directory.setRegistryInfoList(this.nettyClient.getRegistryInfoList());
+            directory.setRegistryInfoList(this.nettyClient.getDiscoverClient().getRegistryInfoTableList());
             request.setBody(directory);
         }
         return request;

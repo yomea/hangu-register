@@ -59,6 +59,7 @@ public class DiscoverClient implements Client {
 
     protected CenterConnectManager connectManager;
 
+    private Map<String, RegistryInfo> registryInfoTable = new ConcurrentHashMap<>();
     private Map<String, List<RegistryNotifyListener>> keyMapListenerMap = new HashMap<>();
     private Map<String, Object> keyMapListenerLockMap = new ConcurrentHashMap<>();
     private ScheduledExecutorService scheduledExecutorService;
@@ -66,7 +67,8 @@ public class DiscoverClient implements Client {
     public DiscoverClient(ClientProperties clientProperties) {
         this.clientProperties = clientProperties;
         this.scheduledExecutorService = new ScheduledThreadPoolExecutor(HanguCons.CPUS);
-        this.connectManager = new CenterConnectManager(this.clientProperties, this.scheduledExecutorService, this.isCenter());
+        this.connectManager = new CenterConnectManager(this, this.clientProperties, this.scheduledExecutorService,
+            this.isCenter());
     }
 
     @Override
@@ -269,7 +271,7 @@ public class DiscoverClient implements Client {
                 this.dealResult(nettyClient, defaultPromise, clientProperties.getTransport().getRegistryServiceTimeout(),
                     markEnum.getDesc());
 
-                nettyClient.addRegistryInfo(registryInfo);
+                this.addRegistryInfo(registryInfo);
                 return null;
             });
         } catch (RpcInvokerException e) {
@@ -435,8 +437,7 @@ public class DiscoverClient implements Client {
         try {
             NettyClient nettyClient = this.sendCommonRequest(CommandTypeMarkEnum.SINGLE_SUBSCRIBE_SERVICE, 0L, serverInfo);
             this.subscribeWithLock(serverInfo, key -> {
-                Set<ServerInfo> subscribeSet = nettyClient.getSubscribeServerInfoList();
-                subscribeSet.add(serverInfo);
+                nettyClient.addSubscribeServerInfo(serverInfo);
             });
         } catch (Exception e) {
             log.error("订阅失败！", e);
@@ -461,16 +462,35 @@ public class DiscoverClient implements Client {
         nettyClient.getChannel().writeAndFlush(request);
     }
 
-    public void reSendSubscribe(NettyClient nettyClient, Set<ServerInfo> serverInfoSet) {
-
-        try {
-            this.sendCommonRequest(nettyClient, CommandTypeMarkEnum.SINGLE_SUBSCRIBE_SERVICE, 0L, serverInfoSet);
-        } catch (Exception e) {
-            log.error("订阅失败！", e);
+    public void reSendSubscribe(Set<ServerInfo> serverInfoSet) {
+        Optional<NettyClient> optionalNettyClient = this.connectManager.pollActiveAndCompleteChannel(
+            Collections.emptyList());
+        if (optionalNettyClient.isPresent()) {
+            try {
+                NettyClient nettyClient = optionalNettyClient.get();
+                this.sendCommonRequest(nettyClient, CommandTypeMarkEnum.SINGLE_SUBSCRIBE_SERVICE, 0L,
+                    serverInfoSet);
+                nettyClient.addSubscribeServerInfo(serverInfoSet);
+            } catch (Exception e) {
+                log.error("重新订阅失败！将在2s之后重试！", e);
+                this.scheduledExecutorService.schedule(() -> {
+                    this.reSendSubscribe(serverInfoSet);
+                }, 2, TimeUnit.SECONDS);
+            }
+        } else {
+            log.warn("重新订阅时，未从链接管理池中获取到可用的链接，2s之后重试！");
             this.scheduledExecutorService.schedule(() -> {
-                this.reSendSubscribe(nettyClient, serverInfoSet);
+                this.reSendSubscribe(serverInfoSet);
             }, 2, TimeUnit.SECONDS);
         }
+    }
 
+    public void addRegistryInfo(RegistryInfo registryInfo) {
+        String key = CommonUtils.createServiceKey(registryInfo);
+        this.registryInfoTable.put(key, registryInfo);
+    }
+
+    public List<RegistryInfo> getRegistryInfoTableList() {
+        return registryInfoTable.values().stream().collect(Collectors.toList());
     }
 }

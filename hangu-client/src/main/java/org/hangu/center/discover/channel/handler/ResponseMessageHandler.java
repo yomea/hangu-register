@@ -29,6 +29,15 @@ public class ResponseMessageHandler extends SimpleChannelInboundHandler<Response
     }
 
     @Override
+    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+        ResponseHandler responseHandler = ResponseHandlerFactory.getResponseHandlerByType(CommandTypeMarkEnum.UN_REGISTERED_SERVICE.getType());
+        if(Objects.nonNull(responseHandler)) {
+            responseHandler.handler(null, this.nettyClient);
+        }
+        super.channelUnregistered(ctx);
+    }
+
+    @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         ResponseHandler responseHandler = ResponseHandlerFactory.getResponseHandlerByType(CommandTypeMarkEnum.BATCH_SUBSCRIBE_SERVICE.getType());
         if(Objects.nonNull(responseHandler)) {

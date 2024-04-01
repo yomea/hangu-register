@@ -10,16 +10,13 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.timeout.IdleStateHandler;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.channel.handler.ByteFrameDecoder;
 import org.hangu.center.common.entity.HostInfo;
-import org.hangu.center.common.entity.RegistryInfo;
 import org.hangu.center.common.entity.Request;
 import org.hangu.center.common.entity.ServerInfo;
 import org.hangu.center.common.enums.ServerStatusEnum;
@@ -39,6 +36,8 @@ public class NettyClient {
 
     private Bootstrap bootstrap;
 
+    private DiscoverClient discoverClient;
+
     private CenterConnectManager connectManager;
 
     private TransportProperties transport;
@@ -55,11 +54,15 @@ public class NettyClient {
 
     private ServerStatusEnum status = ServerStatusEnum.UN_KNOW;
 
-    private List<RegistryInfo> registryInfoList = new ArrayList<>();
     private Set<ServerInfo> subscribeServerInfoList = new HashSet<>();
 
-    public NettyClient(CenterConnectManager connectManager, TransportProperties transport, HostInfo hostInfo,
+    public NettyClient(
+        DiscoverClient discoverClient,
+        CenterConnectManager connectManager,
+        TransportProperties transport,
+        HostInfo hostInfo,
         boolean center) {
+        this.discoverClient = discoverClient;
         this.connectManager = connectManager;
         this.transport = transport;
         this.hostInfo = hostInfo;
@@ -158,18 +161,20 @@ public class NettyClient {
         this.status = status;
     }
 
-    public List<RegistryInfo> getRegistryInfoList() {
-        return registryInfoList;
-    }
     public Set<ServerInfo> getSubscribeServerInfoList() {
         return subscribeServerInfoList;
     }
 
-    public void addRegistryInfo(RegistryInfo registryInfo) {
-        this.registryInfoList.add(registryInfo);
-    }
-    public void addSubscribeServerInfo(ServerInfo serverInfo) {
+    public synchronized void addSubscribeServerInfo(ServerInfo serverInfo) {
         this.subscribeServerInfoList.add(serverInfo);
+    }
+
+    public synchronized void addSubscribeServerInfo(Set<ServerInfo> serverInfos) {
+        this.subscribeServerInfoList.addAll(serverInfos);
+    }
+
+    public synchronized void clearSubscribeServerInfo() {
+        this.subscribeServerInfoList.clear();
     }
 
     public void send(Request<?> request) {
@@ -185,7 +190,7 @@ public class NettyClient {
     }
 
     public void markRelease(boolean release) {
-        this.release = this.release;
+        this.release = release;
     }
 
     public boolean isRelease() {
@@ -196,5 +201,9 @@ public class NettyClient {
         if(Objects.nonNull(this.channel)) {
             this.channel.close();
         }
+    }
+
+    public DiscoverClient getDiscoverClient() {
+        return discoverClient;
     }
 }

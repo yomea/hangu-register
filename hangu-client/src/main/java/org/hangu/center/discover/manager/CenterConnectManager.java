@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.entity.HostInfo;
+import org.hangu.center.discover.client.DiscoverClient;
 import org.hangu.center.discover.client.NettyClient;
 import org.hangu.center.discover.properties.ClientProperties;
 
@@ -29,11 +30,14 @@ public class CenterConnectManager {
     private ScheduledExecutorService scheduledExecutorService;
     private ClientProperties clientProperties;
     private boolean center;
+    private DiscoverClient discoverClient;
 
     public CenterConnectManager(
+        DiscoverClient discoverClient,
         ClientProperties clientProperties,
         ScheduledExecutorService scheduledExecutorService,
         boolean center) {
+        this.discoverClient = discoverClient;
         this.clientProperties = clientProperties;
         this.scheduledExecutorService = scheduledExecutorService;
         this.center = center;
@@ -41,10 +45,10 @@ public class CenterConnectManager {
 
     public synchronized boolean openNewChannel(HostInfo hostInfo) throws InterruptedException {
         // 启动netty客户端
-        NettyClient nettyClient = new NettyClient(this, clientProperties.getTransport(),
+        NettyClient nettyClient = new NettyClient(this.discoverClient, this, clientProperties.getTransport(),
             hostInfo, this.center);
         boolean success = this.cacheChannel(nettyClient, true);
-        if(success) {
+        if (success) {
             nettyClient.open();
             nettyClient.syncConnect();
         }
@@ -132,7 +136,7 @@ public class CenterConnectManager {
                 }
             });
 
-        if(CollectionUtil.isNotEmpty(waitCloseNettClientList)) {
+        if (CollectionUtil.isNotEmpty(waitCloseNettClientList)) {
             this.scheduledExecutorService.schedule(() -> {
                 waitCloseNettClientList.stream().forEach(NettyClient::close);
             }, 30, TimeUnit.SECONDS);
