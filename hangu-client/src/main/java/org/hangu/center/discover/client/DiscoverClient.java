@@ -57,7 +57,7 @@ public class DiscoverClient implements Client {
     private final Object  lock = new Object();
     private ClientProperties clientProperties;
 
-    private CenterConnectManager connectManager;
+    protected CenterConnectManager connectManager;
 
     private Map<String, List<RegistryNotifyListener>> keyMapListenerMap = new HashMap<>();
     private Map<String, Object> keyMapListenerLockMap = new ConcurrentHashMap<>();
@@ -65,8 +65,8 @@ public class DiscoverClient implements Client {
 
     public DiscoverClient(ClientProperties clientProperties) {
         this.clientProperties = clientProperties;
-        this.connectManager = new CenterConnectManager();
         this.scheduledExecutorService = new ScheduledThreadPoolExecutor(HanguCons.CPUS);
+        this.connectManager = new CenterConnectManager(this.clientProperties, this.scheduledExecutorService, this.isCenter());
     }
 
     @Override
@@ -150,6 +150,31 @@ public class DiscoverClient implements Client {
     }
 
     @Override
+    public boolean connectPeerNode(HostInfo hostInfo) {
+        try {
+            // 启动netty客户端
+            return this.connectManager.openNewChannel(hostInfo);
+        } catch (Exception e) {
+            // 链接失败，将会重试
+            log.error(String.format("连接注册中心 %s:%s 失败！请检查地址", hostInfo.getHost(), hostInfo.getPort()),
+                e);
+            return false;
+        }
+    }
+
+    @Override
+    public RegistryNotifyListener getCenterNodeChangeNotify() {
+        return registryInfoList -> {
+            if(CollectionUtil.isEmpty(registryInfoList)) {
+                return;
+            }
+            List<HostInfo> hostInfoList = registryInfoList.stream().map(RegistryInfo::getHostInfo)
+                .distinct().collect(Collectors.toList());
+            this.connectManager.refreshCenterConnect(hostInfoList);
+        };
+    }
+
+    @Override
     public void subscribe(ServerInfo serverInfo, RegistryNotifyListener notifyListener) {
 
         this.subscribeWithLock(serverInfo, key -> {
@@ -190,17 +215,7 @@ public class DiscoverClient implements Client {
         this.parseOtherProperties(clientProperties);
 
         hostInfos.stream().forEach(hostInfo -> {
-            try {
-                // 启动netty客户端
-                NettyClient nettyClient = new NettyClient(this.connectManager, clientProperties.getTransport(),
-                    hostInfo, this.isCenter());
-                this.connectManager.cacheChannel(nettyClient);
-                nettyClient.open();
-                nettyClient.syncConnect();
-            } catch (Exception e) {
-                log.error(String.format("连接注册中心 %s:%s 失败！请检查地址", hostInfo.getHost(), hostInfo.getPort()),
-                    e);
-            }
+            this.connectPeerNode(hostInfo);
         });
     }
 

@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import org.hangu.center.common.api.Close;
 import org.hangu.center.common.api.Init;
 import org.hangu.center.common.constant.HanguCons;
+import org.hangu.center.common.entity.HostInfo;
 import org.hangu.center.common.properties.ThreadProperties;
 import org.hangu.center.discover.bussiness.handler.ResponseHandler;
 import org.hangu.center.discover.bussiness.handler.ResponseHandlerFactory;
@@ -56,6 +57,7 @@ public class CenterServerManager implements Init, Close {
 
     @Override
     public void close() throws Exception {
+        this.serviceRegisterManager.close();
         this.workExecutorService.shutdown();
         this.cloudDiscoverClient.close();
         this.centerServer.close();
@@ -76,8 +78,9 @@ public class CenterServerManager implements Init, Close {
         ClientProperties clientProperties, Optional<List<ResponseHandlerConfig>> optionalResponseHandlers,
         Optional<List<RequestHandlerConfig>> optionalRequestHandlers) throws Exception {
 
-        this.cloudDiscoverClient = new CloudDiscoverClient(clientProperties);
         this.centerServer = new CenterServer(centerProperties, workExecutorService);
+        HostInfo hostInfo = this.centerServer.getCenterHostInfo();
+        this.cloudDiscoverClient = new CloudDiscoverClient(clientProperties, hostInfo);
         this.serviceRegisterManager = new ServiceRegisterManager(workExecutorService, centerServer, cloudDiscoverClient,
             centerProperties);
         // 注册响应处理器

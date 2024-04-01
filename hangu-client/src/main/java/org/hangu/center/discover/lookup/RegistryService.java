@@ -1,6 +1,8 @@
 package org.hangu.center.discover.lookup;
 
 import org.hangu.center.common.entity.RegistryInfo;
+import org.hangu.center.common.entity.ServerInfo;
+import org.hangu.center.common.listener.RegistryNotifyListener;
 
 /**
  * 注册服务
@@ -26,4 +28,6 @@ public interface RegistryService {
     void syncRegistry(RegistryInfo registryInfo);
 
     void syncUnRegister(RegistryInfo registryInfo);
+
+    void subscribe(ServerInfo serverInfo, RegistryNotifyListener notifyListener);
 }

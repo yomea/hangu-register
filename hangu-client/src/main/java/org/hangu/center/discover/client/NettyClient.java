@@ -49,6 +49,8 @@ public class NettyClient {
 
     private boolean center;
 
+    private boolean release = false;
+
     private Long maxPullRegistryTime = 0L;
 
     private ServerStatusEnum status = ServerStatusEnum.UN_KNOW;
@@ -180,5 +182,19 @@ public class NettyClient {
 
     public synchronized void updateMaxPullRegistryTime(long pullRegistryTime) {
         this.maxPullRegistryTime = Math.max(this.getMaxPullRegistryTime(), pullRegistryTime);
+    }
+
+    public void markRelease(boolean release) {
+        this.release = this.release;
+    }
+
+    public boolean isRelease() {
+        return this.release;
+    }
+
+    public void close() {
+        if(Objects.nonNull(this.channel)) {
+            this.channel.close();
+        }
     }
 }

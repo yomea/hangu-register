@@ -111,6 +111,10 @@ public class HeartBeatPongHandler extends ChannelInboundHandlerAdapter {
         if (this.nettyClient.isActive()) {
             return;
         }
+        // 被标记为释放，不需要重连
+        if(this.nettyClient.isRelease()) {
+            return;
+        }
         // 每 2s 重试一次
         ctx.channel().eventLoop().schedule(() -> {
             this.nettyClient.reconnect();

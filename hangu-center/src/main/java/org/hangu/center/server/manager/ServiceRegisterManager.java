@@ -1,9 +1,11 @@
 package org.hangu.center.server.manager;
 
-import cn.hutool.core.net.NetUtil;
+import cn.hutool.core.util.NumberUtil;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelId;
+import java.util.AbstractCollection;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -19,6 +21,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.hangu.center.common.api.Close;
 import org.hangu.center.common.api.Init;
 import org.hangu.center.common.constant.HanguCons;
 import org.hangu.center.common.entity.HostInfo;
@@ -37,7 +40,9 @@ import org.hangu.center.discover.lookup.LookupService;
 import org.hangu.center.server.client.CloudDiscoverClient;
 import org.hangu.center.server.properties.CenterProperties;
 import org.hangu.center.server.server.CenterServer;
+import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.NumberUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -47,7 +52,7 @@ import org.springframework.util.StringUtils;
  * @date 2023/7/31 15:07
  */
 @Slf4j
-public class ServiceRegisterManager implements Init, LookupService {
+public class ServiceRegisterManager implements Init, Close, LookupService {
 
     private static final int DEFAULT_SIZE = 1024;
 
@@ -81,8 +86,6 @@ public class ServiceRegisterManager implements Init, LookupService {
     private CenterProperties centerProperties;
 
     private ScheduledExecutorService scheduledExecutorService;
-
-    private HostInfo hostInfo;
 
     private long heartExpireTimes;
 
@@ -135,50 +138,36 @@ public class ServiceRegisterManager implements Init, LookupService {
 
     @Override
     public void init() throws Exception {
-        this.bindLocalHost();
         // 从其他节点同步注册信息
         // 将自己注册到其他的节点上，用于监控在线的节点
         this.syncAndRegisterSelf();
         // 启动清理过期数据的任务
         this.startClearTask();
-        // 启动从其他节点上增量同步注册信息的任务
-        this.startDeltaSynOtherNodes();
-    }
-
-    private void bindLocalHost() {
-        HostInfo hostInfo = new HostInfo();
-        hostInfo.setHost(NetUtil.getLocalhost().getHostAddress());
-        hostInfo.setPort(this.centerProperties.getPort());
-        this.hostInfo = hostInfo;
     }
 
     private void syncAndRegisterSelf() {
 
         String peerNodeHosts = this.centerProperties.getPeerNodeHosts();
+        List<String> ipAddressList = Arrays.stream(
+                StringUtils.tokenizeToStringArray(AbstractApplicationContext.CONFIG_LOCATION_DELIMITERS,
+                    peerNodeHosts)).filter(StringUtils::hasText)
+            .filter(ipAddress -> {
+                String[] ipPort = ipAddress.split(":");
+                if (ipPort.length == 2) {
+                    HostInfo hostInfo = this.centerServer.getCenterHostInfo();
+                    return !hostInfo.getHost().equals(ipPort[0]) || hostInfo.getPort()
+                        != Integer.parseInt(ipPort[1]);
+                }
+                return true;
+            }).collect(Collectors.toList());
         // 只有配置了有其他的节点，才会调用
-        if (StringUtils.hasText(peerNodeHosts)) {
+        if (!CollectionUtils.isEmpty(ipAddressList)) {
             // 从其他节点同步注册信息
             this.syncOtherNodesInfo();
             // 将自己注册到其他的节点上，用于监控在线的节点
             this.registerSelfToOtherNodes();
         } else {
             centerServer.setStatus(ServerStatusEnum.COMPLETE);
-        }
-    }
-
-    private void startDeltaSynOtherNodes() {
-        // 没20s从其他节点进行增量同步（同步的目的是为了避免因为网络问题，其他节点注册的信息没有推送过来，有时候网络原因，出现假死状态）
-        // 话说有必要么，网络不通就会关闭连接，恢复连接的时候自动再增量同步下，应该会更好点吧
-        this.scheduledExecutorService.schedule(this::deltaSynOtherNodes, 20, TimeUnit.SECONDS);
-    }
-
-    private void deltaSynOtherNodes() {
-        // 时延2分钟，我们部署的时候尽量保证多个机器的时钟是差不多的
-        long registerTime = System.currentTimeMillis() - TIME_DELAY;
-        try {
-            discoverClient.lookupAfterTime(registerTime);
-        } catch (Exception e) {
-            log.error("增量同步其他节点服务失败", e);
         }
     }
 
@@ -320,19 +309,26 @@ public class ServiceRegisterManager implements Init, LookupService {
 
         String peerNodeHosts = this.centerProperties.getPeerNodeHosts();
         if (StringUtils.hasText(peerNodeHosts)) {
-            RegistryInfo registryInfo = new RegistryInfo();
-            registryInfo.setGroupName(HanguCons.GROUP_NAME);
-            registryInfo.setInterfaceName(HanguCons.INTERFACE_NAME);
-            registryInfo.setVersion(HanguCons.VERSION);
-            registryInfo.setCenter(true);
-            registryInfo.setHostInfo(this.hostInfo);
+            RegistryInfo registryInfo = this.buildSelfRegistryInfo();
             this.doRegisterSelfToOtherNodes(registryInfo);
         }
     }
 
+    private RegistryInfo buildSelfRegistryInfo() {
+        RegistryInfo registryInfo = new RegistryInfo();
+        registryInfo.setGroupName(HanguCons.GROUP_NAME);
+        registryInfo.setInterfaceName(HanguCons.INTERFACE_NAME);
+        registryInfo.setVersion(HanguCons.VERSION);
+        registryInfo.setCenter(true);
+        registryInfo.setHostInfo(this.centerServer.getCenterHostInfo());
+        return registryInfo;
+    }
+
     private void doRegisterSelfToOtherNodes(RegistryInfo registryInfo) {
         try {
-            discoverClient.register(registryInfo);
+            this.discoverClient.register(registryInfo);
+            // 订阅集群节点的变化，随时调整集群成员的变更
+            this.discoverClient.subscribe(registryInfo, this.discoverClient.getCenterNodeChangeNotify());
         } catch (Exception e) {
             log.error("向其他节点注册自己（{}）失败！", registryInfo.getHostInfo(), e);
             // 过会再次尝试向其他节点注册自己
@@ -494,5 +490,10 @@ public class ServiceRegisterManager implements Init, LookupService {
             return;
         }
         keySet.stream().forEach(key -> this.unSubscribe(channel, key, false));
+    }
+
+    @Override
+    public void close() throws Exception {
+        this.discoverClient.unRegister(this.buildSelfRegistryInfo());
     }
 }
