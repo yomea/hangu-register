@@ -1,6 +1,7 @@
 package org.hangu.center.discover.bussiness.handler.impl;
 
 import cn.hutool.core.collection.CollectionUtil;
+import java.util.HashSet;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.entity.Response;
@@ -35,8 +36,9 @@ public class ChannelUnregisteredResponseHandler implements ResponseHandler {
         Set<ServerInfo> serverInfoSet = nettyClient.getSubscribeServerInfoList();
         if(CollectionUtil.isNotEmpty(serverInfoSet)) {
             // 清理该客户端订阅的内容
+            Set<ServerInfo> copyServerInfoSet = new HashSet<>(serverInfoSet);
             nettyClient.clearSubscribeServerInfo();
-            this.discoverClient.reSendSubscribe(serverInfoSet);
+            this.discoverClient.reSendSubscribe(copyServerInfoSet);
         }
     }
 }

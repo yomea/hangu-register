@@ -65,7 +65,7 @@ public class NettyServer {
                             .addLast(new ByteFrameDecoder())
                             // 用于编解码
                             .addLast(new ResponseMessageCodec())
-                            .addLast("logging", loggingHandler)
+//                            .addLast("logging", loggingHandler)
                             // 读写时间超过8s，表示该链接已失效
                             .addLast(new IdleStateHandler(0, 0, 8, TimeUnit.SECONDS))
                             // 心跳处理器

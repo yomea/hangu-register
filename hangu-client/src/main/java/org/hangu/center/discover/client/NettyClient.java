@@ -87,7 +87,7 @@ public class NettyClient {
                         ch.pipeline()
                             .addLast(new ByteFrameDecoder())
                             .addLast(new RequestMessageCodec()) // 请求与响应编解码器
-                            .addLast("logging", loggingHandler)
+//                            .addLast("logging", loggingHandler)
                             // 每隔 2s 发送一次心跳，超过三次没有收到响应，也就是三倍的心跳时间，重连
                             .addLast(new IdleStateHandler(transport.getHeartbeatTimeRate(), 0, 0, TimeUnit.SECONDS))
                             .addLast(new HeartBeatPongHandler(NettyClient.this,

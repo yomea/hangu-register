@@ -459,7 +459,11 @@ public class DiscoverClient implements Client {
 
     private void sendSubscribeRequest(ServerInfo serverInfo) {
         try {
-            NettyClient nettyClient = this.sendCommonRequest(CommandTypeMarkEnum.SINGLE_SUBSCRIBE_SERVICE, 0L, serverInfo);
+            Long id = CommonUtils.snowFlakeNextId();
+            NettyClient nettyClient = this.sendCommonRequest(CommandTypeMarkEnum.SINGLE_SUBSCRIBE_SERVICE, id, serverInfo);
+            DefaultPromise<RpcResult> defaultPromise = new DefaultPromise<>(nettyClient.getChannel().eventLoop());
+            RpcRequestManager.putFuture(id, defaultPromise);
+            this.dealResult(nettyClient, defaultPromise, clientProperties.getTransport().getPullServiceListTimeout(), CommandTypeMarkEnum.SINGLE_SUBSCRIBE_SERVICE.getDesc());
             this.subscribeWithLock(serverInfo, key -> {
                 nettyClient.addSubscribeServerInfo(serverInfo);
             });
@@ -493,8 +497,12 @@ public class DiscoverClient implements Client {
             try {
                 NettyClient nettyClient = optionalNettyClient.get();
                 // 重新注册
-                this.sendCommonRequest(nettyClient, CommandTypeMarkEnum.BATCH_SUBSCRIBE_SERVICE, 0L,
-                    serverInfoSet, true);
+                Long id = CommonUtils.snowFlakeNextId();
+                this.sendCommonRequest(nettyClient, CommandTypeMarkEnum.BATCH_SUBSCRIBE_SERVICE, id,
+                    serverInfoSet, false);
+                DefaultPromise<RpcResult> defaultPromise = new DefaultPromise<>(nettyClient.getChannel().eventLoop());
+                RpcRequestManager.putFuture(id, defaultPromise);
+                this.dealResult(nettyClient, defaultPromise, clientProperties.getTransport().getPullServiceListTimeout(), CommandTypeMarkEnum.BATCH_SUBSCRIBE_SERVICE.getDesc());
                 nettyClient.addSubscribeServerInfo(serverInfoSet);
             } catch (Exception e) {
                 log.error("重新订阅失败！将在2s之后重试！", e);

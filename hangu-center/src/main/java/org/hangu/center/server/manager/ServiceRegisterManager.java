@@ -127,7 +127,7 @@ public class ServiceRegisterManager implements Init, Close, LookupService {
     @Override
     public List<RegistryInfo> lookupAfterTime(long registerTime) {
         List<RegistryInfo> registryInfos = this.lookup();
-        return registryInfos.stream().filter(info -> info.getRegisterTime() >= registerTime)
+        return registryInfos.stream().filter(info -> info.getRegisterTime() > registerTime)
             .collect(Collectors.toList());
     }
 
@@ -185,7 +185,7 @@ public class ServiceRegisterManager implements Init, Close, LookupService {
     }
 
     private void startClearTask() {
-        this.scheduledExecutorService.schedule(this::doClearExpireData, 10, TimeUnit.SECONDS);
+        this.scheduledExecutorService.schedule(this::doClearExpireData, 10, TimeUnit.MINUTES);
         this.scheduledExecutorService.schedule(this::doClearInvalidSubChannel, 10, TimeUnit.MINUTES);
     }
 
