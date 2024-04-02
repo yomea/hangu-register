@@ -1,5 +1,6 @@
 package org.hangu.center.discover.lookup;
 
+import java.util.List;
 import org.hangu.center.common.entity.RegistryInfo;
 import org.hangu.center.common.entity.ServerInfo;
 import org.hangu.center.common.listener.RegistryNotifyListener;
@@ -30,4 +31,6 @@ public interface RegistryService {
     void syncUnRegister(RegistryInfo registryInfo);
 
     void subscribe(ServerInfo serverInfo, RegistryNotifyListener notifyListener);
+
+    void syncRenew(List<RegistryInfo> registryInfos);
 }

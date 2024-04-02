@@ -25,6 +25,7 @@ public enum CommandTypeMarkEnum {
     UN_REGISTERED_SERVICE((byte) 11, "通道注销"),
     CHANNEL_ACTIVE_SERVICE((byte) 12, "通道激活"),
     BATCH_SYNC_REMOVE_SERVICE((byte) 13, "同步注销服务"),
+    SYNC_RENEW_SERVICE((byte) 14, "同步续约"),
     ;
 
     private byte type;

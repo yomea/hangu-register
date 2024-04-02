@@ -44,6 +44,11 @@ public class BatchSubscribeNotifyServerRequestHandler implements RequestHandler<
             Optional.ofNullable(serviceRegisterManager.subscribe(channel, serverInfo))
                 .orElse(Collections.emptyList()).stream()).collect(Collectors.toList());
 
+        // 不需要响应
+        if(request.isOneWay()) {
+            return null;
+        }
+
         Response response = new Response();
         response.setId(request.getId());
         response.setCommandType(request.getCommandType());

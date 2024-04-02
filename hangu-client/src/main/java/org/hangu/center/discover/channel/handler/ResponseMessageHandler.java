@@ -1,5 +1,6 @@
 package org.hangu.center.discover.channel.handler;
 
+import cn.hutool.json.JSONUtil;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.util.concurrent.DefaultPromise;
@@ -39,10 +40,6 @@ public class ResponseMessageHandler extends SimpleChannelInboundHandler<Response
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        ResponseHandler responseHandler = ResponseHandlerFactory.getResponseHandlerByType(CommandTypeMarkEnum.BATCH_SUBSCRIBE_SERVICE.getType());
-        if(Objects.nonNull(responseHandler)) {
-            responseHandler.handler(null, this.nettyClient);
-        }
         super.channelActive(ctx);
     }
 
@@ -53,7 +50,7 @@ public class ResponseMessageHandler extends SimpleChannelInboundHandler<Response
         if(Objects.nonNull(id) && id > 0L) {
             DefaultPromise<RpcResult> future = RpcRequestManager.remoteFuture(id);
             if (Objects.isNull(future) || future.isCancelled()) {
-                log.warn("无效的响应请求！id = {}", id);
+                log.warn("无效的响应请求！response = {}", JSONUtil.toJsonStr(response));
                 return;
             } else {
                 RpcResult rpcResult = response.getRpcResult();

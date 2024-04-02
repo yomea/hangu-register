@@ -90,6 +90,7 @@ public class HeartBeatPongHandler extends ChannelInboundHandlerAdapter {
         Request<Object> request = new Request<>();
         request.setId(CommonUtils.snowFlakeNextId());
         if (this.nettyClient.isCenter()) {
+            // 增量续约，节点注册主动推送给其他的节点的时候，可能发生推送失败，可通过心跳增量续约来修复
             request.setCommandType(CommandTypeMarkEnum.RENEW_AND_DELTA_PULL_SERVICE.getType());
             RegistryInfoDirectory directory = new RegistryInfoDirectory();
             Long maxPullRegistryTime = this.nettyClient.getMaxPullRegistryTime();

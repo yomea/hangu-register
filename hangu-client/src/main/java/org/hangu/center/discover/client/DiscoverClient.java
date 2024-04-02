@@ -28,6 +28,7 @@ import org.hangu.center.common.constant.HanguCons;
 import org.hangu.center.common.entity.HostInfo;
 import org.hangu.center.common.entity.LookupServer;
 import org.hangu.center.common.entity.RegistryInfo;
+import org.hangu.center.common.entity.RegistryInfoDirectory;
 import org.hangu.center.common.entity.Request;
 import org.hangu.center.common.entity.RpcResult;
 import org.hangu.center.common.entity.ServerInfo;
@@ -174,6 +175,29 @@ public class DiscoverClient implements Client {
                 .distinct().collect(Collectors.toList());
             this.connectManager.refreshCenterConnect(hostInfoList);
         };
+    }
+
+    @Override
+    public void syncRenew(List<RegistryInfo> registryInfos) {
+
+        Request<Object> request = new Request<>();
+        request.setId(0L);
+        request.setCommandType(CommandTypeMarkEnum.SYNC_RENEW_SERVICE.getType());
+        RegistryInfoDirectory directory = new RegistryInfoDirectory();
+        directory.setRegistryInfoList(registryInfos);
+        request.setBody(directory);
+        request.setOneWay(true);
+
+        List<NettyClient> nettyClientList = Optional.ofNullable(this.connectManager.getActiveCenterChannelList())
+            .orElse(Collections.emptyList());
+        nettyClientList.stream().forEach(nettyClient -> {
+            try {
+                nettyClient.send(request);
+            } catch (Exception e) {
+                // 同步续约失败，这里不会再重试，通过下次客户端心跳发生续约同步
+                log.error("向节点{}同步续约{}失败！", nettyClient.getHostInfo(), registryInfos);
+            }
+        });
     }
 
     @Override
@@ -449,17 +473,17 @@ public class DiscoverClient implements Client {
 
     private <T> NettyClient sendCommonRequest(CommandTypeMarkEnum markEnum, Long id, T data) {
         NettyClient nettyClient = this.getCenterConnect(Collections.emptyList());
-        this.sendCommonRequest(nettyClient, markEnum, id, data);
+        this.sendCommonRequest(nettyClient, markEnum, id, data, false);
         return nettyClient;
     }
 
-    private <T> void sendCommonRequest(NettyClient nettyClient, CommandTypeMarkEnum markEnum, Long id, T data) {
+    private <T> void sendCommonRequest(NettyClient nettyClient, CommandTypeMarkEnum markEnum, Long id, T data, boolean oneWay) {
         Request<T> request = new Request<>();
         request.setId(id);
         request.setCommandType(markEnum.getType());
         request.setBody(data);
+        request.setOneWay(oneWay);
         nettyClient.send(request);
-        nettyClient.getChannel().writeAndFlush(request);
     }
 
     public void reSendSubscribe(Set<ServerInfo> serverInfoSet) {
@@ -468,8 +492,9 @@ public class DiscoverClient implements Client {
         if (optionalNettyClient.isPresent()) {
             try {
                 NettyClient nettyClient = optionalNettyClient.get();
-                this.sendCommonRequest(nettyClient, CommandTypeMarkEnum.SINGLE_SUBSCRIBE_SERVICE, 0L,
-                    serverInfoSet);
+                // 重新注册
+                this.sendCommonRequest(nettyClient, CommandTypeMarkEnum.BATCH_SUBSCRIBE_SERVICE, 0L,
+                    serverInfoSet, true);
                 nettyClient.addSubscribeServerInfo(serverInfoSet);
             } catch (Exception e) {
                 log.error("重新订阅失败！将在2s之后重试！", e);

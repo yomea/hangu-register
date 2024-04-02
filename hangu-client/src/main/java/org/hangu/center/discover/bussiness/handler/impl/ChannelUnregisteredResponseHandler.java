@@ -1,10 +1,8 @@
 package org.hangu.center.discover.bussiness.handler.impl;
 
 import cn.hutool.core.collection.CollectionUtil;
-import java.util.List;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
-import org.hangu.center.common.entity.RegistryInfo;
 import org.hangu.center.common.entity.Response;
 import org.hangu.center.common.entity.ServerInfo;
 import org.hangu.center.common.enums.CommandTypeMarkEnum;
@@ -39,10 +37,6 @@ public class ChannelUnregisteredResponseHandler implements ResponseHandler {
             // 清理该客户端订阅的内容
             nettyClient.clearSubscribeServerInfo();
             this.discoverClient.reSendSubscribe(serverInfoSet);
-        }
-        List<RegistryInfo> registryInfoList = nettyClient.getRegistryInfoList();
-        if(CollectionUtil.isNotEmpty(registryInfoList)) {
-            this.discoverClient.moveRegistryList(registryInfoList);
         }
     }
 }

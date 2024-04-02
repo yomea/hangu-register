@@ -1,5 +1,6 @@
 package org.hangu.center.server.manager;
 
+import cn.hutool.core.collection.CollectionUtil;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelId;
 import java.util.ArrayList;
@@ -354,17 +355,26 @@ public class ServiceRegisterManager implements Init, Close, LookupService {
         return effectiveList;
     }
 
-    public void renew(List<RegistryInfo> registryInfoList) {
+    public void renew(List<RegistryInfo> registryInfoList, boolean sync) {
+        List<RegistryInfo> needSyncRenew = new ArrayList<>();
         Optional.ofNullable(registryInfoList).orElse(Collections.emptyList()).stream().forEach(registryInfo -> {
             String key = CommonUtils.createServiceKey(registryInfo);
             RegistryInfo exists = serviceKeyMapHostInfos.getOrDefault(key, Collections.emptyMap())
                 .get(registryInfo.getHostInfo());
             if (Objects.nonNull(exists)) {
                 exists.setExpireTime(System.currentTimeMillis() + this.heartExpireTimes);
+                needSyncRenew.add(registryInfo);
             } else {
                 this.register(registryInfo);
             }
         });
+
+        if(sync && CollectionUtil.isNotEmpty(needSyncRenew)) {
+            // 续约，需要同步到其他节点，但不需要进行订阅通知
+            this.workExecutorService.submit(() -> {
+                this.discoverClient.syncRenew(needSyncRenew);
+            });
+        }
     }
 
     private void subscribeNotify(List<? extends ServerInfo> serverInfoList) {

@@ -46,7 +46,7 @@ public class CloudDiscoverClient extends DiscoverClient {
                 return;
             }
             List<HostInfo> hostInfoList = registryInfoList.stream()
-                .filter(e -> !e.equals(this.cloudHostInfo))
+                .filter(e -> !e.getHostInfo().equals(this.cloudHostInfo))
                 .map(RegistryInfo::getHostInfo)
                 .distinct().collect(Collectors.toList());
             this.connectManager.refreshCenterConnect(hostInfoList);

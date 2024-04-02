@@ -37,7 +37,7 @@ public class RenewAndDeltaPullServerRequestHandler implements RequestHandler<Reg
     public Response handler(Request<RegistryInfoDirectory> request, NettyServer nettyServer, Channel channel) {
         // 拉取服务列表
         RegistryInfoDirectory registryInfo = request.getBody();
-        serviceRegisterManager.renew(registryInfo.getRegistryInfoList());
+        serviceRegisterManager.renew(registryInfo.getRegistryInfoList(), true);
         Long afterRegisterTime = registryInfo.getRegisterTime();
         afterRegisterTime = Objects.isNull(afterRegisterTime) ? 0L : afterRegisterTime;
         List<RegistryInfo> infos = serviceRegisterManager.lookupAfterTime(afterRegisterTime);

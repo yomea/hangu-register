@@ -33,7 +33,7 @@ public class RenewServerRequestHandler implements RequestHandler<RegistryInfoDir
     public Response handler(Request<RegistryInfoDirectory> request, NettyServer nettyServer, Channel channel) {
 
         RegistryInfoDirectory directory = request.getBody();
-        serviceRegisterManager.renew(directory.getRegistryInfoList());
+        serviceRegisterManager.renew(directory.getRegistryInfoList(), true);
         Response response = new Response();
         response.setId(request.getId());
         response.setCommandType(request.getCommandType());
