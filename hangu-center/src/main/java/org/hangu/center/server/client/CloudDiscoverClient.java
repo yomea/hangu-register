@@ -1,7 +1,9 @@
 package org.hangu.center.server.client;
 
 import cn.hutool.core.collection.CollectionUtil;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.entity.HostInfo;
@@ -41,10 +43,12 @@ public class CloudDiscoverClient extends DiscoverClient {
 
     @Override
     public RegistryNotifyListener getCenterNodeChangeNotify() {
-        return registryInfoList -> {
-            if(CollectionUtil.isEmpty(registryInfoList)) {
+        return registryNotifyInfos -> {
+            if(CollectionUtil.isEmpty(registryNotifyInfos)) {
                 return;
             }
+            List<RegistryInfo> registryInfoList = registryNotifyInfos.stream().flatMap(e -> Optional.ofNullable(e.getRegistryInfos())
+                .orElse(Collections.emptyList()).stream()).collect(Collectors.toList());
             List<HostInfo> hostInfoList = registryInfoList.stream()
                 .filter(e -> !e.getHostInfo().equals(this.cloudHostInfo))
                 .map(RegistryInfo::getHostInfo)

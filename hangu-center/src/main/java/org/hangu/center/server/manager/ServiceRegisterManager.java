@@ -26,6 +26,7 @@ import org.hangu.center.common.constant.HanguCons;
 import org.hangu.center.common.entity.HostInfo;
 import org.hangu.center.common.entity.LookupServer;
 import org.hangu.center.common.entity.RegistryInfo;
+import org.hangu.center.common.entity.RegistryNotifyInfo;
 import org.hangu.center.common.entity.Response;
 import org.hangu.center.common.entity.RpcResult;
 import org.hangu.center.common.entity.ServerInfo;
@@ -364,9 +365,9 @@ public class ServiceRegisterManager implements Init, Close, LookupService {
             if (Objects.nonNull(exists)) {
                 exists.setExpireTime(System.currentTimeMillis() + this.heartExpireTimes);
                 needSyncRenew.add(registryInfo);
-            } else {
+            }/* else {
                 this.register(registryInfo);
-            }
+            }*/
         });
 
         if(sync && CollectionUtil.isNotEmpty(needSyncRenew)) {
@@ -408,7 +409,11 @@ public class ServiceRegisterManager implements Init, Close, LookupService {
         lookupServer.setInterfaceName(serverInfo.getInterfaceName());
         lookupServer.setAfterRegisterTime(0L);
         List<RegistryInfo> registryInfoList = this.lookup(lookupServer);
-        Response response = this.buildNotifyResponse(registryInfoList);
+
+        RegistryNotifyInfo registryNotifyInfo = new RegistryNotifyInfo();
+        registryNotifyInfo.setServerInfo(serverInfo);
+        registryNotifyInfo.setRegistryInfos(registryInfoList);
+        Response response = this.buildNotifyResponse(registryNotifyInfo);
         nettyServerList.stream().forEach(nettyServer -> {
             try {
                 nettyServer.writeAndFlush(response);
@@ -419,14 +424,14 @@ public class ServiceRegisterManager implements Init, Close, LookupService {
         });
     }
 
-    private Response buildNotifyResponse(List<RegistryInfo> registryInfos) {
+    private Response buildNotifyResponse(RegistryNotifyInfo registryNotifyInfo) {
         Response response = new Response();
         response.setId(0L);
         response.setCommandType(CommandTypeMarkEnum.SINGLE_SUBSCRIBE_SERVICE.getType());
         RpcResult rpcResult = new RpcResult();
         rpcResult.setCode(ErrorCodeEnum.SUCCESS.getCode());
-        rpcResult.setResult(registryInfos);
-        rpcResult.setReturnType(List.class);
+        rpcResult.setResult(registryNotifyInfo);
+        rpcResult.setReturnType(RegistryNotifyInfo.class);
         response.setRpcResult(rpcResult);
         return response;
     }

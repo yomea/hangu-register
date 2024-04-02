@@ -29,6 +29,7 @@ import org.hangu.center.common.entity.HostInfo;
 import org.hangu.center.common.entity.LookupServer;
 import org.hangu.center.common.entity.RegistryInfo;
 import org.hangu.center.common.entity.RegistryInfoDirectory;
+import org.hangu.center.common.entity.RegistryNotifyInfo;
 import org.hangu.center.common.entity.Request;
 import org.hangu.center.common.entity.RpcResult;
 import org.hangu.center.common.entity.ServerInfo;
@@ -167,7 +168,16 @@ public class DiscoverClient implements Client {
 
     @Override
     public RegistryNotifyListener getCenterNodeChangeNotify() {
-        return registryInfoList -> {
+        return registryNotifyInfos -> {
+
+            if(CollectionUtil.isEmpty(registryNotifyInfos)) {
+                return;
+            }
+
+            List<RegistryInfo> registryInfoList = registryNotifyInfos.stream()
+                .flatMap(e -> Optional.ofNullable(e.getRegistryInfos())
+                    .orElse(Collections.emptyList()).stream()).collect(Collectors.toList());
+
             if(CollectionUtil.isEmpty(registryInfoList)) {
                 return;
             }
@@ -227,11 +237,12 @@ public class DiscoverClient implements Client {
     }
 
     @Override
-    public void notify(List<RegistryInfo> registryInfoList) {
-        Map<String, List<RegistryInfo>> keyMapInfoListMap = registryInfoList.stream().collect(Collectors.groupingBy(CommonUtils::createServiceKey));
-        keyMapInfoListMap.forEach((key, infos) -> {
+    public void notify(List<RegistryNotifyInfo> registryNotifyInfos) {
+
+        registryNotifyInfos.stream().forEach(registryNotifyInfo -> {
+            String key = CommonUtils.createServiceKey(registryNotifyInfo.getServerInfo());
             List<RegistryNotifyListener> listeners = this.keyMapListenerMap.getOrDefault(key, Collections.emptyList());
-            listeners.stream().forEach(e -> e.notify(registryInfoList));
+            listeners.stream().forEach(e -> e.notify(Collections.singletonList(registryNotifyInfo)));
         });
     }
 

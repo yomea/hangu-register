@@ -2,9 +2,11 @@ package org.hangu.center.discover.bussiness.handler.impl;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.entity.RegistryInfo;
+import org.hangu.center.common.entity.RegistryNotifyInfo;
 import org.hangu.center.common.entity.Response;
 import org.hangu.center.common.entity.RpcResult;
 import org.hangu.center.common.enums.CommandTypeMarkEnum;
@@ -38,9 +40,11 @@ public class SubscribeNotifyResponseHandler implements ResponseHandler {
             Exception exception = (Exception) rpcResult.getResult();
             log.error("订阅通知异常！", exception);
         } else {
-            List<RegistryInfo> hostInfoList = (List<RegistryInfo>) rpcResult.getResult();
-            List<RegistryInfo> infoList = Optional.ofNullable(hostInfoList).orElse(Collections.emptyList());
-            discoverClient.notify(infoList);
+            RegistryNotifyInfo registryNotifyInfo = (RegistryNotifyInfo) rpcResult.getResult();
+            List<RegistryNotifyInfo> infos = Objects.isNull(registryNotifyInfo)
+                ? Collections.emptyList()
+                : Collections.singletonList(registryNotifyInfo);
+            discoverClient.notify(infos);
         }
     }
 }

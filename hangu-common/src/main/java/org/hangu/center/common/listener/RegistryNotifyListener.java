@@ -2,6 +2,7 @@ package org.hangu.center.common.listener;
 
 import java.util.List;
 import org.hangu.center.common.entity.RegistryInfo;
+import org.hangu.center.common.entity.RegistryNotifyInfo;
 
 /**
  * @author wuzhenhong
@@ -10,5 +11,5 @@ import org.hangu.center.common.entity.RegistryInfo;
 @FunctionalInterface
 public interface RegistryNotifyListener {
 
-    void notify(List<RegistryInfo> registryInfoList);
+    void notify(List<RegistryNotifyInfo> registryNotifyInfos);
 }
