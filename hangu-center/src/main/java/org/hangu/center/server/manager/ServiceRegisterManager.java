@@ -243,14 +243,14 @@ public class ServiceRegisterManager implements Init, Close, LookupService {
     }
 
     public void register(RegistryInfo registryInfo) {
-        this.doRegister(registryInfo, true);
+        this.doRegister(registryInfo, true, true);
     }
 
     public void syncRegistry(RegistryInfo registryInfo) {
-        this.doRegister(registryInfo, false);
+        this.doRegister(registryInfo, false, true);
     }
 
-    private void doRegister(RegistryInfo registryInfo, boolean sync) {
+    private void doRegister(RegistryInfo registryInfo, boolean sync, boolean notify) {
         String key = CommonUtils.createServiceKey(registryInfo);
         synchronized (LOCK) {
             Map<HostInfo, RegistryInfo> hostInfoRegistryInfoMap = serviceKeyMapHostInfos.get(key);
@@ -276,7 +276,9 @@ public class ServiceRegisterManager implements Init, Close, LookupService {
             });
         }
 
-        this.subscribeNotify(Collections.singletonList(registryInfo));
+        if(notify) {
+            this.subscribeNotify(Collections.singletonList(registryInfo));
+        }
     }
 
     public void unRegister(RegistryInfo registryInfo) {
@@ -365,9 +367,12 @@ public class ServiceRegisterManager implements Init, Close, LookupService {
             if (Objects.nonNull(exists)) {
                 exists.setExpireTime(System.currentTimeMillis() + this.heartExpireTimes);
                 needSyncRenew.add(registryInfo);
-            }/* else {
-                this.register(registryInfo);
-            }*/
+            } else {
+                // 可能因为网络问题或者其他的一些问题导致服务器上没有该api服务，那么
+                // 就重新注册下
+                 this.register(registryInfo);
+//                this.doRegister(registryInfo, false, false);
+            }
         });
 
         if(sync && CollectionUtil.isNotEmpty(needSyncRenew)) {

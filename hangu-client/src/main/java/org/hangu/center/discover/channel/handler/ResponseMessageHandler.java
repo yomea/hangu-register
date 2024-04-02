@@ -12,6 +12,7 @@ import org.hangu.center.common.enums.CommandTypeMarkEnum;
 import org.hangu.center.discover.bussiness.handler.ResponseHandler;
 import org.hangu.center.discover.bussiness.handler.ResponseHandlerFactory;
 import org.hangu.center.discover.client.NettyClient;
+import org.hangu.center.discover.manager.NettyClientEventLoopManager;
 import org.hangu.center.discover.manager.RpcRequestManager;
 
 /**
@@ -31,9 +32,11 @@ public class ResponseMessageHandler extends SimpleChannelInboundHandler<Response
 
     @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
-        ResponseHandler responseHandler = ResponseHandlerFactory.getResponseHandlerByType(CommandTypeMarkEnum.UN_REGISTERED_SERVICE.getType());
-        if(Objects.nonNull(responseHandler)) {
-            responseHandler.handler(null, this.nettyClient);
+        if(!NettyClientEventLoopManager.isClose()) {
+            ResponseHandler responseHandler = ResponseHandlerFactory.getResponseHandlerByType(CommandTypeMarkEnum.UN_REGISTERED_SERVICE.getType());
+            if(Objects.nonNull(responseHandler)) {
+                responseHandler.handler(null, this.nettyClient);
+            }
         }
         super.channelUnregistered(ctx);
     }

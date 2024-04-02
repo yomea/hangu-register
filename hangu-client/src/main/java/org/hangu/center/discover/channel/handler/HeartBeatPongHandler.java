@@ -13,6 +13,7 @@ import org.hangu.center.common.entity.RpcResult;
 import org.hangu.center.common.enums.CommandTypeMarkEnum;
 import org.hangu.center.common.util.CommonUtils;
 import org.hangu.center.discover.client.NettyClient;
+import org.hangu.center.discover.manager.NettyClientEventLoopManager;
 import org.hangu.center.discover.manager.RpcRequestManager;
 
 /**
@@ -107,7 +108,10 @@ public class HeartBeatPongHandler extends ChannelInboundHandlerAdapter {
     }
 
     private void reconnect(ChannelHandlerContext ctx) {
-
+        // 客户端关闭了，不需要再重连
+        if(NettyClientEventLoopManager.isClose()) {
+            return;
+        }
         // 如果连接还活着，不需要重连
         if (this.nettyClient.isActive()) {
             return;
