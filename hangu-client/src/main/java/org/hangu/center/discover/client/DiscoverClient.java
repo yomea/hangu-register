@@ -309,6 +309,8 @@ public class DiscoverClient implements Client {
                 this.addRegistryInfo(registryInfo);
                 return null;
             });
+        } catch (NoServerAvailableException e) {
+            throw e;
         } catch (RpcInvokerException e) {
             throw e;
         } catch (Exception e) {
@@ -321,7 +323,7 @@ public class DiscoverClient implements Client {
         Optional<NettyClient> optionalChannel = this.connectManager.pollActiveAndCompleteChannel(exclusionList);
         NettyClient nettyClient = optionalChannel.orElseThrow(
             () -> new NoServerAvailableException(ErrorCodeEnum.NOT_FOUND.getCode(),
-                "没获取到可用的注册额中心连接，请检查连接！"));
+                "没获取到可用的注册中心连接，请检查地址或者对应节点是否可用！"));
         return nettyClient;
     }
 

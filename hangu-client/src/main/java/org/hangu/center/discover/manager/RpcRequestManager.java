@@ -17,7 +17,7 @@ public class RpcRequestManager {
         FUTURE_MAP.put(id, future);
     }
 
-    public static DefaultPromise<RpcResult> remoteFuture(Long id) {
+    public static DefaultPromise<RpcResult> removeFuture(Long id) {
         return FUTURE_MAP.remove(id);
     }
 }

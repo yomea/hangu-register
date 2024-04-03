@@ -51,7 +51,7 @@ public class ResponseMessageHandler extends SimpleChannelInboundHandler<Response
 
         Long id = response.getId();
         if(Objects.nonNull(id) && id > 0L) {
-            DefaultPromise<RpcResult> future = RpcRequestManager.remoteFuture(id);
+            DefaultPromise<RpcResult> future = RpcRequestManager.removeFuture(id);
             if (Objects.isNull(future) || future.isCancelled()) {
                 log.warn("无效的响应请求！response = {}", JSONUtil.toJsonStr(response));
                 return;

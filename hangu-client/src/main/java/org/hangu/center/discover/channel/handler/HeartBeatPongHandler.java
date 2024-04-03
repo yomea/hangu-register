@@ -73,7 +73,7 @@ public class HeartBeatPongHandler extends ChannelInboundHandlerAdapter {
                     ctx.writeAndFlush(request).addListener(future -> {
                         if (!future.isSuccess()) {
                             log.error("发送心跳失败！", future.cause());
-                            RpcRequestManager.remoteFuture(request.getId());
+                            RpcRequestManager.removeFuture(request.getId());
                         }
                     });
                     ++retryBeat;
