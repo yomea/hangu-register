@@ -405,7 +405,7 @@ public class DiscoverClient implements Client {
     }
 
     private <T> T retryAbleJob(Integer retryCount, Function<NettyClient, T> function) throws Exception {
-        retryCount = Objects.isNull(retryCount) || retryCount <= 0 ? 1 : 3;
+        retryCount = Objects.isNull(retryCount) || retryCount <= 0 ? 1 : retryCount;
         int count = 0;
         Exception ex = null;
         List<NettyClient> exclusionList = new ArrayList<>();

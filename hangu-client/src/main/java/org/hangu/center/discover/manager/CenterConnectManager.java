@@ -66,7 +66,7 @@ public class CenterConnectManager {
                 hostInfoSet.add(nettyClient.getHostInfo());
                 success = centerChannelList.add(nettyClient);
             } else {
-                log.warn("ip为{}的服务器地址被标记为共享，将不再添加新链接！", nettyClient.getHostInfo());
+                // nothing to do
             }
         } else {
             hostInfoSet.add(nettyClient.getHostInfo());
