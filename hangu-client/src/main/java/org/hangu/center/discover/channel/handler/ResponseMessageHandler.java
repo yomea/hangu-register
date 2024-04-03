@@ -5,6 +5,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.util.concurrent.DefaultPromise;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.entity.Response;
 import org.hangu.center.common.entity.RpcResult;
@@ -25,17 +26,20 @@ import org.hangu.center.discover.manager.RpcRequestManager;
 public class ResponseMessageHandler extends SimpleChannelInboundHandler<Response> {
 
     private NettyClient nettyClient;
+    private ExecutorService executorService;
 
-    public ResponseMessageHandler(NettyClient nettyClient) {
+    public ResponseMessageHandler(NettyClient nettyClient, ExecutorService executorService) {
         this.nettyClient = nettyClient;
+        this.executorService = executorService;
     }
 
     @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
-        if(!NettyClientEventLoopManager.isClose()) {
-            ResponseHandler responseHandler = ResponseHandlerFactory.getResponseHandlerByType(CommandTypeMarkEnum.UN_REGISTERED_SERVICE.getType());
-            if(Objects.nonNull(responseHandler)) {
-                responseHandler.handler(null, this.nettyClient);
+        if (!NettyClientEventLoopManager.isClose()) {
+            ResponseHandler responseHandler = ResponseHandlerFactory.getResponseHandlerByType(
+                CommandTypeMarkEnum.UN_REGISTERED_SERVICE.getType());
+            if (Objects.nonNull(responseHandler)) {
+                this.executorService.submit(() -> responseHandler.handler(null, this.nettyClient));
             }
         }
         super.channelUnregistered(ctx);
@@ -64,7 +68,7 @@ public class ResponseMessageHandler extends SimpleChannelInboundHandler<Response
         ResponseHandler responseHandler = ResponseHandlerFactory.getResponseHandlerByType(commandType);
         // 有自定义处理的，走这里
         if(Objects.nonNull(responseHandler)) {
-            responseHandler.handler(response, this.nettyClient);
+            executorService.submit(() -> responseHandler.handler(response, this.nettyClient));
         }
     }
 

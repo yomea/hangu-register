@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -28,6 +29,7 @@ public class CenterConnectManager {
     private List<NettyClient> centerChannelList = new ArrayList<>();
     private Set<HostInfo> hostInfoSet = new HashSet<>();
     private ScheduledExecutorService scheduledExecutorService;
+    private ExecutorService executorService;
     private ClientProperties clientProperties;
     private boolean center;
     private DiscoverClient discoverClient;
@@ -35,10 +37,12 @@ public class CenterConnectManager {
     public CenterConnectManager(
         DiscoverClient discoverClient,
         ClientProperties clientProperties,
+        ExecutorService executorService,
         ScheduledExecutorService scheduledExecutorService,
         boolean center) {
         this.discoverClient = discoverClient;
         this.clientProperties = clientProperties;
+        this.executorService = executorService;
         this.scheduledExecutorService = scheduledExecutorService;
         this.center = center;
     }
@@ -49,7 +53,7 @@ public class CenterConnectManager {
             hostInfo, this.center);
         boolean success = this.cacheChannel(nettyClient, true);
         if (success) {
-            nettyClient.open();
+            nettyClient.open(this.executorService);
             nettyClient.syncConnect();
         }
         return success;
@@ -62,7 +66,7 @@ public class CenterConnectManager {
                 hostInfoSet.add(nettyClient.getHostInfo());
                 success = centerChannelList.add(nettyClient);
             } else {
-                log.warn("ip为{}的服务器地址被标记为共享，不要重复添加链接！");
+                log.warn("ip为{}的服务器地址被标记为共享，将不再添加新链接！", nettyClient.getHostInfo());
             }
         } else {
             hostInfoSet.add(nettyClient.getHostInfo());

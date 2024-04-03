@@ -151,7 +151,8 @@ public class ServiceRegisterManager implements Init, Close, LookupService {
                 String[] ipPort = ipAddress.split(":");
                 if (ipPort.length == 2) {
                     HostInfo hostInfo = this.centerServer.getCenterHostInfo();
-                    return !hostInfo.getHost().equals(ipPort[0]) || hostInfo.getPort()
+                    return (!hostInfo.getHost().equals(ipPort[0]) && !"localhost".equals(ipPort[0]))
+                        || hostInfo.getPort()
                         != Integer.parseInt(ipPort[1]);
                 }
                 return true;

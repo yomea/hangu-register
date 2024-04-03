@@ -13,10 +13,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
@@ -65,11 +70,23 @@ public class DiscoverClient implements Client {
     private Map<String, List<RegistryNotifyListener>> keyMapListenerMap = new HashMap<>();
     private Map<String, Object> keyMapListenerLockMap = new ConcurrentHashMap<>();
     private ScheduledExecutorService scheduledExecutorService;
+    private ExecutorService workExecutorService;
 
     public DiscoverClient(ClientProperties clientProperties) {
+        this(clientProperties, null);
+    }
+
+    public DiscoverClient(ClientProperties clientProperties, ExecutorService executorService) {
+        if(Objects.isNull(executorService)) {
+            executorService = new ThreadPoolExecutor(HanguCons.CPUS << 3, HanguCons.CPUS << 3,
+                0L, TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(1024));
+        }
         this.clientProperties = clientProperties;
+        this.workExecutorService = executorService;
         this.scheduledExecutorService = new ScheduledThreadPoolExecutor(HanguCons.CPUS);
-        this.connectManager = new CenterConnectManager(this, this.clientProperties, this.scheduledExecutorService,
+        this.connectManager = new CenterConnectManager(this, this.clientProperties, this.workExecutorService,
+            this.scheduledExecutorService,
             this.isCenter());
     }
 
@@ -123,11 +140,11 @@ public class DiscoverClient implements Client {
             .orElse(Collections.emptyList());
         nettyClientList.stream().forEach(nettyClient -> {
             try {
-                this.doRegister(registryInfo, CommandTypeMarkEnum.BATCH_SYNC_REGISTER_SERVICE, 1);
+                this.doRegister(nettyClient, registryInfo, CommandTypeMarkEnum.BATCH_SYNC_REGISTER_SERVICE);
             } catch (Exception e) {
                 // 同步某个节点失败，这里不会再做重试，通过心跳去同步
-                log.error("同步 groupName: {}, interface: {}, version: {} 到 {} 节点失败！将在下次心跳时同步", registryInfo.getGroupName(),
-                    registryInfo.getInterfaceName(), registryInfo.getVersion(), registryInfo.getHostInfo());
+                log.error("同步 groupName: {}, interface: {}, version: {} host：{} 到 {} 节点失败！将在下次心跳时同步", registryInfo.getGroupName(),
+                    registryInfo.getInterfaceName(), registryInfo.getVersion(), registryInfo.getHostInfo(), nettyClient.getHostInfo());
             }
         });
 
@@ -291,22 +308,7 @@ public class DiscoverClient implements Client {
 
         try {
             this.retryAbleJob(retryCount, nettyClient -> {
-                Channel channel = nettyClient.getChannel();
-
-                Request<List<RegistryInfo>> request = new Request<>();
-                request.setId(CommonUtils.snowFlakeNextId());
-                request.setCommandType(markEnum.getType());
-                request.setBody(Collections.singletonList(registryInfo));
-
-                DefaultPromise<RpcResult> defaultPromise = new DefaultPromise<>(channel.eventLoop());
-                RpcRequestManager.putFuture(request.getId(), defaultPromise);
-
-                channel.writeAndFlush(request);
-
-                this.dealResult(nettyClient, defaultPromise, clientProperties.getTransport().getRegistryServiceTimeout(),
-                    markEnum.getDesc());
-
-                this.addRegistryInfo(registryInfo);
+                this.doRegister(nettyClient, registryInfo, markEnum);
                 return null;
             });
         } catch (NoServerAvailableException e) {
@@ -316,6 +318,24 @@ public class DiscoverClient implements Client {
         } catch (Exception e) {
             throw new RpcInvokerException(ErrorCodeEnum.FAILURE.getCode(), "调用异常！", e);
         }
+    }
+
+    private void doRegister(NettyClient nettyClient, RegistryInfo registryInfo, CommandTypeMarkEnum markEnum) {
+        Channel channel = nettyClient.getChannel();
+
+        Request<List<RegistryInfo>> request = new Request<>();
+        request.setId(CommonUtils.snowFlakeNextId());
+        request.setCommandType(markEnum.getType());
+        request.setBody(Collections.singletonList(registryInfo));
+
+        DefaultPromise<RpcResult> defaultPromise = new DefaultPromise<>(channel.eventLoop());
+        RpcRequestManager.putFuture(request.getId(), defaultPromise);
+
+        channel.writeAndFlush(request);
+
+        this.dealResult(nettyClient, defaultPromise, clientProperties.getTransport().getRegistryServiceTimeout(),
+            markEnum.getDesc());
+        this.addRegistryInfo(registryInfo);
     }
 
 

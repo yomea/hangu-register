@@ -13,6 +13,7 @@ import io.netty.handler.timeout.IdleStateHandler;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.channel.handler.ByteFrameDecoder;
@@ -69,7 +70,7 @@ public class NettyClient {
         this.center = center;
     }
 
-    public void open() {
+    public void open(ExecutorService executorService) {
         try {
             bootstrap = new Bootstrap();
 //            @Sharable
@@ -92,7 +93,7 @@ public class NettyClient {
                             .addLast(new IdleStateHandler(transport.getHeartbeatTimeRate(), 0, 0, TimeUnit.SECONDS))
                             .addLast(new HeartBeatPongHandler(NettyClient.this,
                                 transport.getHeartbeatTimeOutCount())) // 心跳编码器
-                            .addLast(new ResponseMessageHandler(NettyClient.this));
+                            .addLast(new ResponseMessageHandler(NettyClient.this, executorService));
                     }
                 });
         } catch (Exception e) {

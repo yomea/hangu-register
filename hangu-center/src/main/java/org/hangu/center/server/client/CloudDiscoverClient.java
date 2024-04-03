@@ -3,6 +3,7 @@ package org.hangu.center.server.client;
 import cn.hutool.core.collection.CollectionUtil;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +35,8 @@ public class CloudDiscoverClient extends DiscoverClient {
     @Override
     public boolean connectPeerNode(HostInfo hostInfo) {
         // 如果是本机就不需要链接
-        if(this.cloudHostInfo.equals(hostInfo)) {
+        if ((this.cloudHostInfo.getHost().equals(hostInfo.getHost()) || "localhost".equals(hostInfo.getHost()))
+            && this.cloudHostInfo.getPort() == hostInfo.getPort()) {
             log.warn("ip为{}的服务为本机，不需要链接！", hostInfo);
             return false;
         }
@@ -50,7 +52,12 @@ public class CloudDiscoverClient extends DiscoverClient {
             List<RegistryInfo> registryInfoList = registryNotifyInfos.stream().flatMap(e -> Optional.ofNullable(e.getRegistryInfos())
                 .orElse(Collections.emptyList()).stream()).collect(Collectors.toList());
             List<HostInfo> hostInfoList = registryInfoList.stream()
-                .filter(e -> !e.getHostInfo().equals(this.cloudHostInfo))
+                .filter(e -> {
+                    String ip = e.getHostInfo().getHost();
+                    Integer port = e.getHostInfo().getPort();
+                    return (!ip.equals(this.cloudHostInfo.getHost())
+                        && !ip.equals("localhost")) || !Objects.equals(port, this.cloudHostInfo.getPort());
+                })
                 .map(RegistryInfo::getHostInfo)
                 .distinct().collect(Collectors.toList());
             this.connectManager.refreshCenterConnect(hostInfoList);
