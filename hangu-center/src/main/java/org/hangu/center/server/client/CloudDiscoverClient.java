@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.hangu.center.common.entity.HostInfo;
@@ -22,8 +23,8 @@ public class CloudDiscoverClient extends DiscoverClient {
 
     private HostInfo cloudHostInfo;
 
-    public CloudDiscoverClient(ClientProperties clientProperties, HostInfo cloudHostInfo) {
-        super(clientProperties);
+    public CloudDiscoverClient(ExecutorService executorService, ClientProperties clientProperties, HostInfo cloudHostInfo) {
+        super(clientProperties, executorService);
         this.cloudHostInfo = cloudHostInfo;
     }
 

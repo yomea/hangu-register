@@ -80,7 +80,7 @@ public class CenterServerManager implements Init, Close {
 
         this.centerServer = new CenterServer(centerProperties, workExecutorService);
         HostInfo hostInfo = this.centerServer.getCenterHostInfo();
-        this.cloudDiscoverClient = new CloudDiscoverClient(clientProperties, hostInfo);
+        this.cloudDiscoverClient = new CloudDiscoverClient(workExecutorService, clientProperties, hostInfo);
         this.serviceRegisterManager = new ServiceRegisterManager(workExecutorService, centerServer, cloudDiscoverClient,
             centerProperties);
         // 注册响应处理器
