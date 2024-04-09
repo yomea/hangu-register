@@ -244,31 +244,23 @@ public class ServiceRegisterManager implements Init, Close, LookupService {
     }
 
     public void register(RegistryInfo registryInfo) {
-        this.doRegister(registryInfo, true, true, false);
+        this.doRegister(registryInfo, true);
     }
 
     public void syncRegistry(RegistryInfo registryInfo) {
-        this.doRegister(registryInfo, false, true, true);
+        this.doRegister(registryInfo, false);
     }
 
-    private void doRegister(RegistryInfo registryInfo, boolean sync, boolean notify, boolean syncOption) {
+    private void doRegister(RegistryInfo registryInfo, boolean sync) {
         String key = CommonUtils.createServiceKey(registryInfo);
         // 比较是否已经存在，如果存在且是生效的，认为是重复注册，不需要通知
-        boolean exist = false;
         synchronized (LOCK) {
             Map<HostInfo, RegistryInfo> hostInfoRegistryInfoMap = serviceKeyMapHostInfos.get(key);
             if (Objects.isNull(hostInfoRegistryInfoMap)) {
                 hostInfoRegistryInfoMap = new HashMap<>();
                 serviceKeyMapHostInfos.put(key, hostInfoRegistryInfoMap);
-            } else if(syncOption) {
-                // 如果是其他节点推过来的同步注册，那么判断该节点是否已经存在有效的注册信息，如果已经有了，那么不需要再重复
-                // 去通知
-                RegistryInfo oldRegistryInfo = hostInfoRegistryInfoMap.get(registryInfo.getHostInfo());
-                long currentTime = System.currentTimeMillis();
-                if(Objects.nonNull(oldRegistryInfo) && currentTime <= oldRegistryInfo.getExpireTime()) {
-                    exist = true;
-                }
             }
+
             // 如果是同步过来的，registerTime 和 expireTime 是会有值的
             Long registerTime = registryInfo.getRegisterTime();
             if(Objects.isNull(registerTime) || registerTime <= 0L) {
@@ -287,27 +279,23 @@ public class ServiceRegisterManager implements Init, Close, LookupService {
             });
         }
 
-        if(!exist && notify) {
-            this.subscribeNotify(Collections.singletonList(registryInfo));
-        }
+        this.subscribeNotify(Collections.singletonList(registryInfo));
     }
 
     public void unRegister(RegistryInfo registryInfo) {
-        this.doUnRegister(registryInfo, true, false);
+        this.doUnRegister(registryInfo, true);
     }
 
     public void syncUnRegistry(RegistryInfo registryInfo) {
-        this.doUnRegister(registryInfo, false, true);
+        this.doUnRegister(registryInfo, false);
     }
 
-    private void doUnRegister(RegistryInfo registryInfo, boolean sync, boolean syncOption) {
+    private void doUnRegister(RegistryInfo registryInfo, boolean sync) {
         String key = CommonUtils.createServiceKey(registryInfo);
         Map<HostInfo, RegistryInfo> map = serviceKeyMapHostInfos.get(key);
         if(!CollectionUtils.isEmpty(map)) {
-            boolean notify = true;
-            RegistryInfo oldRegistryInfo = map.remove(registryInfo.getHostInfo());
-            if(syncOption && Objects.isNull(oldRegistryInfo)) {
-                notify = false;
+            synchronized (map) {
+                map.remove(registryInfo.getHostInfo());
             }
             // 向其他节点同步注册信息
             if(sync) {
@@ -315,9 +303,7 @@ public class ServiceRegisterManager implements Init, Close, LookupService {
                     this.discoverClient.syncUnRegister(registryInfo);
                 });
             }
-            if(notify) {
-                this.subscribeNotify(Collections.singletonList(registryInfo));
-            }
+            this.subscribeNotify(Collections.singletonList(registryInfo));
         }
     }
 
